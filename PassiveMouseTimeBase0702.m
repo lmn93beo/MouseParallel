@@ -1,8 +1,12 @@
 %% Clear the workspace
-close all;
+close all; 
 clear all;
 
+global DAQstruct
+
 %% Initialize DAQ Devices
+DAQstruct.exceeded_threshold = [0 0];
+
 disp('Getting devices...');
 daq.getDevices();
 
@@ -11,7 +15,7 @@ s = daq.createSession('ni');
 s.Rate = 2000; %rate of sampling per second
 
 %Add channels
-disp('Adding channels');
+disp('Adding channels...');
 ch0 = s.addAnalogInputChannel('Dev2','ai0','Voltage');
 ch2 = s.addAnalogInputChannel('Dev2','ai2','Voltage');
 
@@ -82,7 +86,7 @@ BoxWidth=30;
 NumFramesWaitZeroSpeed = 100;
 
 
-% Window-relevatnt parameters
+% Window-relevant parameters
 [window, windowRect] = Screen('OpenWindow', screenNumber, BackgCol);
 
 %Get relevant screen parameters:
@@ -129,9 +133,6 @@ SpeedArray = [200 100 200 100 200  0 200 100 200 100;
 PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
 
 
-
-
-
 %% Experimental loop
 Priority(topPriorityLevel);
 
@@ -149,6 +150,7 @@ for trial = 1:numTrials
       % Initialize the position and select a texture to show
       ImxCenter = 0;
       FrameCount = 0;
+      JuiceGiven = [0 0]; %Indicates whether juice has been given for the trial.
       index = round(rand)+1;
       ShownTexture = TextureList{index};
       
@@ -172,14 +174,23 @@ for trial = 1:numTrials
                   fnDrawFixationCross(FixationCrossSize,window,windowRect,CrossLineWidth);
             end
             
-            tic
-            %Flip
+            %% Reward!
+            for i = 1:2
+                  if imageRect(1)> xCenter-TargetPosRange && JuiceGiven(i) == 0 && ...
+                              DAQstruct.exceeded_threshold(i) == 1 
+                        fprintf('Mouse %d gets reward!\n', i);
+                        JuiceGiven(i)= 1;
+                  end
+            end
+            
+            
+            
+            %% Flip
             vbl = Screen('Flip',window,vbl + (waitFrames-0.5)*ifi,0,1);
             %vbl = Screen('AsyncFlipBegin',window,vbl + (waitFrames-0.5)*ifi,0,1);
             %         vbl = Screen('Flip',window,0,0,1,0);
             
-            toc
-            
+                        
             %Find the corresponding speed and update center accordingly
             [m, n] = size(find(PositionArray <= ImxCenter));
             
