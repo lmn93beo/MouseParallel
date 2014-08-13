@@ -180,16 +180,6 @@ for trial = 1:numTrials
             end
             
             %% Reward!
-            
-            % Construct a list of 0 and 1 which indicates whether the juice
-            % should be given for each port
-            OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
-                  JuiceGiven == 0 & DAQstruct.LickedList == 1;
-            if sum(OutputDecisionList) ~= 0
-                  OutputSession.outputSingleScan(OutputDecisionList);
-            end
-            
-            % Print a statement
             for i = 1:4
                   if imageRect(1)> xCenter-TargetPosRange && JuiceGiven(i) == 0 && ...
                               DAQstruct.LickedList(i) == 1 
@@ -198,8 +188,8 @@ for trial = 1:numTrials
                   end
             end
             
-            
-            
+            OutputDecisionList = imageRect(1)> xCenter-TargetPosRange && ...
+                  JuiceGiven(i) == 0 && DAQstruct.LickedList == 1;
             
             
             
