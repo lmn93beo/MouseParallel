@@ -202,8 +202,8 @@ for trial = 1:numTrials
                         find(OutputDecisionList==1));
                   
                   %Change the JuiceGiven
-                  JuiceGiven = OutputDecisionList;
-                  TimeJuiceGiven = OutputDecisionList * GetSecs();    
+                  JuiceGiven = JuiceGiven + OutputDecisionList;
+                  TimeJuiceGiven = TimeJuiceGiven + OutputDecisionList * GetSecs();    
                   
             end
             
@@ -211,7 +211,8 @@ for trial = 1:numTrials
             
             
             % After 3 secs, reset port to 0. 
-            if sum(ShouldReset) ~= 0               
+            if sum(ShouldReset) ~= 0
+                  disp(ShouldReset);
                   OutputResetList = TimeJuiceGiven;
                   OutputResetList(OutputResetList ~= 0 & GetSecs()-TimeJuiceGiven <JuiceTime & ResetGiven==0) = 1;
                   OutputResetList(OutputResetList ~= 1) = 0;
@@ -256,5 +257,5 @@ Priority(0);
 %% Stop acquistion, clear screen and exit.
 RecSession.stop();
 sca;
-close all;
-clear all;
+% close all;
+% clear all;
