@@ -90,6 +90,9 @@ BoxHeight=350;
 BoxWidth=30;
 NumFramesWaitZeroSpeed = 100;
 
+%Juice information
+JuiceTime = 3;
+
 
 % Window-relevant parameters
 [window, windowRect] = Screen('OpenWindow', screenNumber, BackgCol);
@@ -155,7 +158,9 @@ for trial = 1:numTrials
       % Initialize the position and select a texture to show
       ImxCenter = 0;
       FrameCount = 0;
-      JuiceGiven = [0 0 0 0 ]; %Indicates whether juice has been given for the trial.
+      JuiceGiven = [0 0 0 0]; %Indicates whether juice has been given for the trial.
+      TimeJuiceGiven = [0 0 0 0]; %Time that the juice was given. 0 means not given
+      ResetGiven = [0 0 0 0];
       index = round(rand)+1;
       ShownTexture = TextureList{index};
       
@@ -185,22 +190,38 @@ for trial = 1:numTrials
             % should be given for each port
             OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
                   JuiceGiven == 0 & DAQstruct.LickedList == 1;
+            
+            %When mouse licks & stimulus is in, set port to 1.            
             if sum(OutputDecisionList) ~= 0
+%                   disp(OutputDecisionList);
+                  % Direct the output ports
                   OutputSession.outputSingleScan(OutputDecisionList);
+                  
+                  %Print out a statement
+                  arrayfun(@(x) fprintf('Mouse %d gets reward!\n',x),...
+                        find(OutputDecisionList==1));
+                  
+                  %Change the JuiceGiven
+                  JuiceGiven = OutputDecisionList;
+                  TimeJuiceGiven = OutputDecisionList * GetSecs();    
+                  
             end
             
-            % Print a statement
-            for i = 1:4
-                  if imageRect(1)> xCenter-TargetPosRange && JuiceGiven(i) == 0 && ...
-                              DAQstruct.LickedList(i) == 1 
-                        fprintf('Mouse %d gets reward!\n', i);
-                        JuiceGiven(i)= 1;
-                  end
+            ShouldReset = TimeJuiceGiven ~= 0 & GetSecs()-TimeJuiceGiven > JuiceTime & ResetGiven == 0;
+            
+            
+            % After 3 secs, reset port to 0. 
+            if sum(ShouldReset) ~= 0               
+                  OutputResetList = TimeJuiceGiven;
+                  OutputResetList(OutputResetList ~= 0 & GetSecs()-TimeJuiceGiven <JuiceTime & ResetGiven==0) = 1;
+                  OutputResetList(OutputResetList ~= 1) = 0;
+                  OutputSession.outputSingleScan(OutputResetList);
+                  ResetGiven = ResetGiven + ShouldReset;
+                  
+                  arrayfun(@(x) fprintf('Resetting port %d.\n',x),...
+                         find(ShouldReset == 1));
+                  
             end
-            
-            
-            
-            
             
             
             %% Flip
