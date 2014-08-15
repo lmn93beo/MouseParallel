@@ -2,7 +2,7 @@
 close all; 
 clear all;
 
-global DAQstruct
+global MainStruct DAQstruct
 
 %% Initialize DAQ Devices
 DAQstruct.LickedList = [0 0 0 0]; 
@@ -13,7 +13,7 @@ daq.getDevices();
 % Create two sessions - one for continuous background recording and 
 % one for output and then set parameters for each of them.
 RecSession = daq.createSession('ni');
-RecSession.Rate = 2000; %rate of sampling per second
+RecSession.Rate = 10; %rate of sampling per second
 OutputSession = daq.createSession('ni');
 
 %Add channels
@@ -22,18 +22,21 @@ RecSession.addAnalogInputChannel('Dev2',{'ai0','ai1','ai2','ai3'},'Voltage');
 OutputSession.addDigitalChannel('Dev1',['port0/line0','port0/line1',...
       'port0/line2','port0/line3'],'OutputOnly');
 
+%Initialize port states to be all 0.
+OutputSession.outputSingleScan([0 0 0 0]);
+MainStruct.CurrentPortState = [0 0 0 0];
 
-
-%Add listener
+%Add listener for background listening
 lh = RecSession.addlistener('DataAvailable', @plotData);
-RecSession.NotifyWhenDataAvailableExceeds = 2000;
+RecSession.NotifyWhenDataAvailableExceeds = 5;
 
-% s will run forever until it is told to stop
+% RecSession will run forever until it is told to stop
 RecSession.IsContinuous = true;
 
 % Start the acquisition
 disp('Starting background acquisition...');
 RecSession.startBackground();
+MainStruct.InitTime = GetSecs();
 
 %% Set image info
 
@@ -134,8 +137,8 @@ waitFrames = 1;
 screenXpixels;
 MoveArrayCluster=9;
 
-SpeedArray = [200 100 200 100 200  0 200 100 200 100;
-      400 0 0 100 0 100 400 100 0 100];
+SpeedArray = [200 100 200 100 200  100 200 100 200 100;
+      400 100 100 100 100 100 400 100 100 100];
 
 [numTrials, numIntervals] = size(SpeedArray);
 PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
@@ -189,13 +192,18 @@ for trial = 1:numTrials
             % Construct a list of 0 and 1 which indicates whether the juice
             % should be given for each port
             OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
+                  imageRect(3)< xCenter+TargetPosRange &...
                   JuiceGiven == 0 & DAQstruct.LickedList == 1;
-            
-            %When mouse licks & stimulus is in, set port to 1.            
+                        
+            % If a juice is detected...            
             if sum(OutputDecisionList) ~= 0
-%                   disp(OutputDecisionList);
+                  
+                  % Update the new port state                  
+                  MainStruct.CurrentPortState = ...
+                        MainStruct.CurrentPortState + OutputDecisionList;
+                  
                   % Direct the output ports
-                  OutputSession.outputSingleScan(OutputDecisionList);
+                  OutputSession.outputSingleScan(MainStruct.CurrentPortState);
                   
                   %Print out a statement
                   arrayfun(@(x) fprintf('Mouse %d gets reward!\n',x),...
@@ -207,16 +215,18 @@ for trial = 1:numTrials
                   
             end
             
+            % Should reset detects whether a port should be reset to 0.
             ShouldReset = TimeJuiceGiven ~= 0 & GetSecs()-TimeJuiceGiven > JuiceTime & ResetGiven == 0;
-            
-            
-            % After 3 secs, reset port to 0. 
+                       
+            % After TimeJuiceGiven, reset port to 0... 
             if sum(ShouldReset) ~= 0
-                  disp(ShouldReset);
-                  OutputResetList = TimeJuiceGiven;
-                  OutputResetList(OutputResetList ~= 0 & GetSecs()-TimeJuiceGiven <JuiceTime & ResetGiven==0) = 1;
-                  OutputResetList(OutputResetList ~= 1) = 0;
-                  OutputSession.outputSingleScan(OutputResetList);
+                  %Update new port state
+                  MainStruct.CurrentPortState = MainStruct.CurrentPortState - ShouldReset;
+                  
+                  %Direct the output ports
+                  OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                  
+                  %Change 'ResetG
                   ResetGiven = ResetGiven + ShouldReset;
                   
                   arrayfun(@(x) fprintf('Resetting port %d.\n',x),...
@@ -258,4 +268,4 @@ Priority(0);
 RecSession.stop();
 sca;
 % close all;
-% clear all;
+clear all;
