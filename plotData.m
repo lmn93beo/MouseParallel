@@ -4,7 +4,11 @@ global all_scans all_TimeStamps DAQstruct MainStruct
 all_scans = [all_scans;event.Data];
 all_TimeStamps = [all_TimeStamps;event.TimeStamps];
 
-LickedList = event.Data(1,1:4)>2;
+maxReadings = max(event.Data);
+
+LickedList = maxReadings>0.15;
+disp('LickedList: ');
+disp(LickedList);
 DAQstruct.LickedList = LickedList;
 
 fprintf('%f: Acquired %d scans...\n',GetSecs()-MainStruct.InitTime,size(event.TimeStamps,1));%datestr(now)

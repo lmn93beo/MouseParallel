@@ -19,8 +19,8 @@ OutputSession = daq.createSession('ni');
 %Add channels
 disp('Adding channels...');
 RecSession.addAnalogInputChannel('Dev2',{'ai0','ai1','ai2','ai3'},'Voltage');
-OutputSession.addDigitalChannel('Dev1',['port0/line0','port0/line1',...
-      'port0/line2','port0/line3'],'OutputOnly');
+OutputSession.addDigitalChannel('Dev1',['port0/line2','port0/line1',...
+      'port0/line0','port0/line3'],'OutputOnly');
 
 %Initialize port states to be all 0.
 OutputSession.outputSingleScan([0 0 0 0]);
@@ -191,9 +191,13 @@ for trial = 1:numTrials
             
             % Construct a list of 0 and 1 which indicates whether the juice
             % should be given for each port
-            OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
-                  imageRect(3)< xCenter+TargetPosRange &...
-                  JuiceGiven == 0 & DAQstruct.LickedList == 1;
+             OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
+                   imageRect(3)< xCenter+TargetPosRange &...
+                   JuiceGiven == 0 & DAQstruct.LickedList == 1;
+            disp('JuiceGiven');
+            disp(JuiceGiven);
+            disp('OutputDecisionList');
+            disp(OutputDecisionList);
                         
             % If a juice is detected...            
             if sum(OutputDecisionList) ~= 0
