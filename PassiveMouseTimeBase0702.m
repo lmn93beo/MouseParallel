@@ -206,8 +206,10 @@ for trial = 1:numTrials
                   % Direct the output ports
                   OutputSession.outputSingleScan(MainStruct.CurrentPortState);
                   if ImmediateReset
-                        OutputSession.outputSingleScan([0 0 0 0]);
-                        MainStruct.CurrentPortState = [0 0 0 0];
+                        MainStruct.CurrentPortState = ...
+                                MainStruct.CurrentPortState - OutputDecisionList;
+                        OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                        
                   end
                   
                   %Print out a statement
