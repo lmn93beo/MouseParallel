@@ -6,7 +6,7 @@ all_TimeStamps = [all_TimeStamps;event.TimeStamps];
 
 maxReadings = max(event.Data);
 
-LickedList = maxReadings>0.15;
+LickedList = maxReadings>0.07;
 disp('LickedList: ');
 disp(LickedList);
 DAQstruct.LickedList = LickedList;

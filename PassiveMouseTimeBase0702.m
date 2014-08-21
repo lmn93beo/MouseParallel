@@ -18,11 +18,11 @@ OutputSession = daq.createSession('ni');
 
 %Add channels
 disp('Adding channels...');
-RecSession.addAnalogInputChannel('Dev2',{'ai0','ai1','ai2','ai3'},'Voltage');
-OutputSession.addDigitalChannel('Dev1',['port0/line2','port0/line1',...
+RecSession.addAnalogInputChannel('Dev1',{'ai0','ai1','ai2','ai3'},'Voltage');
+OutputSession.addDigitalChannel('Dev2',['port0/line2','port0/line1',...
       'port0/line0','port0/line3'],'OutputOnly');
 
-%Initialize port states to be all 0.
+%Initialize port statesstop to be all 0.
 OutputSession.outputSingleScan([0 0 0 0]);
 MainStruct.CurrentPortState = [0 0 0 0];
 
@@ -72,7 +72,7 @@ Im(10).val=0;
 
 %% Initialize and open screen
 
-%Screen('Preference', 'SkipSyncTests', 1 );
+Screen('Preference', 'SkipSyncTests', 1 );
 
 screens = Screen('Screens');
 screenNumber = 0;
@@ -94,7 +94,8 @@ BoxWidth=30;
 NumFramesWaitZeroSpeed = 100;
 
 %Juice information
-JuiceTime = 3;
+JuiceTime = 0.01;
+ImmediateReset = 1;
 
 
 % Window-relevant parameters
@@ -137,8 +138,7 @@ waitFrames = 1;
 screenXpixels;
 MoveArrayCluster=9;
 
-SpeedArray = [200 100 200 100 200  100 200 100 200 100;
-      400 100 100 100 100 100 400 100 100 100];
+SpeedArray = repmat([200 100 200 100 200  100 200 100 200 100],[50 1]);
 
 [numTrials, numIntervals] = size(SpeedArray);
 PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
@@ -194,10 +194,7 @@ for trial = 1:numTrials
              OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
                    imageRect(3)< xCenter+TargetPosRange &...
                    JuiceGiven == 0 & DAQstruct.LickedList == 1;
-            disp('JuiceGiven');
-            disp(JuiceGiven);
-            disp('OutputDecisionList');
-            disp(OutputDecisionList);
+            
                         
             % If a juice is detected...            
             if sum(OutputDecisionList) ~= 0
@@ -208,6 +205,10 @@ for trial = 1:numTrials
                   
                   % Direct the output ports
                   OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                  if ImmediateReset
+                        OutputSession.outputSingleScan([0 0 0 0]);
+                        MainStruct.CurrentPortState = [0 0 0 0];
+                  end
                   
                   %Print out a statement
                   arrayfun(@(x) fprintf('Mouse %d gets reward!\n',x),...
@@ -219,23 +220,29 @@ for trial = 1:numTrials
                   
             end
             
-            % Should reset detects whether a port should be reset to 0.
-            ShouldReset = TimeJuiceGiven ~= 0 & GetSecs()-TimeJuiceGiven > JuiceTime & ResetGiven == 0;
-                       
-            % After TimeJuiceGiven, reset port to 0... 
-            if sum(ShouldReset) ~= 0
-                  %Update new port state
-                  MainStruct.CurrentPortState = MainStruct.CurrentPortState - ShouldReset;
-                  
-                  %Direct the output ports
-                  OutputSession.outputSingleScan(MainStruct.CurrentPortState);
-                  
-                  %Change 'ResetGiven'
-                  ResetGiven = ResetGiven + ShouldReset;
-                  
-                  %Print out a statement
-                  arrayfun(@(x) fprintf('Resetting port %d.\n',x),...
-                         find(ShouldReset == 1));     
+            if ~ImmediateReset
+                    % Used when we want the port to open for longer...
+                    
+                    % Should reset detects whether a port should be reset to 0.
+                    ShouldReset = TimeJuiceGiven ~= 0 & GetSecs()-TimeJuiceGiven > JuiceTime & ResetGiven == 0;
+
+                    % After JuiceTime, reset port to 0... 
+                    if sum(ShouldReset) ~= 0
+                          %Update new port state
+                          MainStruct.CurrentPortState = MainStruct.CurrentPortState - ShouldReset;
+
+                          %Direct the output ports
+                          OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+
+
+
+                          %Change 'ResetGiven'
+                          ResetGiven = ResetGiven + ShouldReset;
+
+                          %Print out a statement
+                          arrayfun(@(x) fprintf('Resetting port %d.\n',x),...
+                                 find(ShouldReset == 1));     
+                    end
             end
             
             %% Flip
@@ -257,7 +264,7 @@ for trial = 1:numTrials
             end
             
             ImxCenter = ImxCenter + ifi*SpeedArray(trial,n);  
-            
+           
       end  
 end
 
@@ -267,4 +274,4 @@ Priority(0);
 RecSession.stop();
 sca;
 % close all;
-clear all;
+% clear all;
