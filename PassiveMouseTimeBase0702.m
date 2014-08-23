@@ -96,6 +96,7 @@ NumFramesWaitZeroSpeed = 100;
 %Juice information
 JuiceTime = 0.01;
 ImmediateReset = 1;
+StopTimes = [0 0 0 0]; %Keeps track of number of stop times for each mouse
 
 
 % Window-relevant parameters
@@ -138,7 +139,7 @@ waitFrames = 1;
 screenXpixels;
 MoveArrayCluster=9;
 
-SpeedArray = repmat([200 100 200 100 200  100 200 100 200 100],[50 1]);
+SpeedArray = repmat([200 100 200 100 200  100 200 100 200 100],[250 1]);
 
 [numTrials, numIntervals] = size(SpeedArray);
 PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
@@ -146,6 +147,7 @@ PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
 
 %% Experimental loop
 Priority(topPriorityLevel);
+
 
 for trial = 1:numTrials
       % If this is the first trial we present a start screen and wait for
@@ -162,6 +164,7 @@ for trial = 1:numTrials
       ImxCenter = 0;
       FrameCount = 0;
       JuiceGiven = [0 0 0 0]; %Indicates whether juice has been given for the trial.
+      
       TimeJuiceGiven = [0 0 0 0]; %Time that the juice was given. 0 means not given
       ResetGiven = [0 0 0 0];
       index = round(rand)+1;
@@ -205,6 +208,8 @@ for trial = 1:numTrials
                   
                   % Direct the output ports
                   OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                  
+                  StopTimes = StopTimes + OutputDecisionList;
                   if ImmediateReset
                         MainStruct.CurrentPortState = ...
                                 MainStruct.CurrentPortState - OutputDecisionList;
@@ -275,5 +280,10 @@ Priority(0);
 %% Stop acquistion, clear screen and exit.
 RecSession.stop();
 sca;
+disp('Summary for this run:')
+for i= 1:4
+        numCorrect = StopTimes(i);
+        fprintf('Mouse %d got %d rewards \n' , i, numCorrect);
+end
 % close all;
 % clear all;
