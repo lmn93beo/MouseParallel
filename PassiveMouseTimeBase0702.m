@@ -98,6 +98,10 @@ JuiceTime = 0.01;
 ImmediateReset = 1;
 StopTimes = [0 0 0 0]; %Keeps track of number of stop times for each mouse
 
+% Keep track of other performance statistics CT 8/26/14
+FalsePos = [0 0 0 0]; % Lick but not target
+Missed = [0 0 0 0]; % Target but no lick
+CorrRej = [0 0 0 0]; % Correct rejection
 
 % Window-relevant parameters
 [window, windowRect] = Screen('OpenWindow', screenNumber, BackgCol);
@@ -139,7 +143,7 @@ waitFrames = 1;
 screenXpixels;
 MoveArrayCluster=9;
 
-SpeedArray = repmat([200 100 200 100 200  100 200 100 200 100],[250 1]);
+SpeedArray = repmat([200 100 200 100 200  100 200 100 200 100],[400 1]);
 
 [numTrials, numIntervals] = size(SpeedArray);
 PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
@@ -164,6 +168,10 @@ for trial = 1:numTrials
       ImxCenter = 0;
       FrameCount = 0;
       JuiceGiven = [0 0 0 0]; %Indicates whether juice has been given for the trial.
+      % Keep track if trial has already been counted as a miss or false pos
+      MissedCount = [0 0 0 0];
+      FPCount = [0 0 0 0];
+      CorrRejCount = [0 0 0 0];
       
       TimeJuiceGiven = [0 0 0 0]; %Time that the juice was given. 0 means not given
       ResetGiven = [0 0 0 0];
@@ -189,15 +197,58 @@ for trial = 1:numTrials
             if UseCross
                   fnDrawFixationCross(FixationCrossSize,window,windowRect,CrossLineWidth);
             end
-            
-            %% Reward!
-            
-            % Construct a list of 0 and 1 which indicates whether the juice
-            % should be given for each port
-             OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
+%%            
+%             %% Reward!
+%             
+%             % Construct a list of 0 and 1 which indicates whether the juice
+%             % should be given for each port
+%              OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
+%                    imageRect(3)< xCenter+TargetPosRange &...
+%                    JuiceGiven == 0 & DAQstruct.LickedList == 1;
+
+%           
+%                         
+%             % If a juice is detected...            
+%             if sum(OutputDecisionList) ~= 0
+%                   
+%                   % Update the new port state                  
+%                   MainStruct.CurrentPortState = ...
+%                         MainStruct.CurrentPortState + OutputDecisionList;
+%                   
+%                   % Direct the output ports
+%                   OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+%                   
+%                   StopTimes = StopTimes + OutputDecisionList;
+%                   if ImmediateReset
+%                         MainStruct.CurrentPortState = ...
+%                                 MainStruct.CurrentPortState - OutputDecisionList;
+%                         OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+%                         
+%                   end
+%                   
+%                   %Print out a statement
+%                   arrayfun(@(x) fprintf('Mouse %d gets reward!\n',x),...
+%                         find(OutputDecisionList==1));
+%                   
+%                   %Change the JuiceGiven
+%                   JuiceGiven = JuiceGiven + OutputDecisionList;
+%                   TimeJuiceGiven = TimeJuiceGiven + OutputDecisionList * GetSecs();    
+%                   
+%             end
+%%
+% Reward + Keep track of statistics  8/26/14
+           OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
                    imageRect(3)< xCenter+TargetPosRange &...
-                   JuiceGiven == 0 & DAQstruct.LickedList == 1;
+                   JuiceGiven == 0 & DAQstruct.LickedList == 1 & Im(index).val == 1;
             
+           MissedList = imageRect(3)> xCenter+TargetPosRange &...
+                   JuiceGiven == 0 & MissedCount == 0 & Im(index).val == 1;
+           
+           FalsePosList = imageRect(1)> xCenter-TargetPosRange & ...
+                   imageRect(3)< xCenter+TargetPosRange &...
+                   FPCount == 0 & JuiceGiven == 0 & DAQstruct.LickedList == 1 & Im(index).val ~= 1;
+           CorrRejList = imageRect(3)> xCenter+TargetPosRange &...
+                   JuiceGiven == 0 & CorrRejCount == 0 & Im(index).val ~= 1;
                         
             % If a juice is detected...            
             if sum(OutputDecisionList) ~= 0
@@ -223,8 +274,23 @@ for trial = 1:numTrials
                   
                   %Change the JuiceGiven
                   JuiceGiven = JuiceGiven + OutputDecisionList;
-                  TimeJuiceGiven = TimeJuiceGiven + OutputDecisionList * GetSecs();    
-                  
+                  TimeJuiceGiven = TimeJuiceGiven + OutputDecisionList * GetSecs();
+            end
+            
+            % Update other statistics if juice not given
+            if sum(MissedList) ~= 0
+                  Missed = Missed + MissedList;
+                  MissedCount = MissedCount + MissedList;
+            end
+            
+            if sum(FalsePosList) ~= 0
+                  FalsePos = FalsePos + FalsePosList;
+                  FPCount = FPCount + FalsePosList;
+            end                 
+            
+            if sum(CorrRejList) ~= 0
+                  CorrRej = CorrRej + CorrRejList;
+                  CorrRejCount = CorrRejCount + CorrRejList;
             end
             
             if ~ImmediateReset
@@ -283,7 +349,14 @@ sca;
 disp('Summary for this run:')
 for i= 1:4
         numCorrect = StopTimes(i);
-        fprintf('Mouse %d got %d rewards \n' , i, numCorrect);
+        
+        % Other statistics CT 8/26/14
+        numFalsePos = FalsePos(i);
+        numMissed = Missed(i);
+        numCorrRej = CorrRej(i);
+        
+        fprintf('Mouse %d got %d rewards, %d false positives, %d misses, %d correct rejection \n',...
+                i, numCorrect, numFalsePos, numMissed, numCorrRej);
 end
 % close all;
 % clear all;
