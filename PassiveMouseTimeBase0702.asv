@@ -1,16 +1,16 @@
 %% Clear the workspace
-close all; 
+close all;
 clear all;
 
 global MainStruct DAQstruct
 
 %% Initialize DAQ Devices
-DAQstruct.LickedList = [0 0 0 0]; 
+DAQstruct.LickedList = [0 0 0 0];
 
 disp('Getting devices...');
 daq.getDevices();
 
-% Create two sessions - one for continuous background recording and 
+% Create two sessions - one for continuous background recording and
 % one for output and then set parameters for each of them.
 RecSession = daq.createSession('ni');
 RecSession.Rate = 10; %rate of sampling per second
@@ -20,7 +20,7 @@ OutputSession = daq.createSession('ni');
 disp('Adding channels...');
 RecSession.addAnalogInputChannel('Dev1',{'ai0','ai1','ai2','ai3'},'Voltage');
 OutputSession.addDigitalChannel('Dev2',['port0/line2','port0/line1',...
-      'port0/line0','port0/line3'],'OutputOnly');
+        'port0/line0','port0/line3'],'OutputOnly');
 
 %Initialize port statesstop to be all 0.
 OutputSession.outputSingleScan([0 0 0 0]);
@@ -95,6 +95,18 @@ NumFramesWaitZeroSpeed = 100;
 
 %Juice information
 JuiceTime = 0.01;
+ImmediateReset = 1;
+StopTimes = [0 0 0 0]; %Keeps track of number of stop times for each mouse
+
+% Keep track of other performance statistics CT 8/26/14
+FalsePos = [0 0 0 0]; % Lick but not target
+Missed = [0 0 0 0]; % Target but no lick
+CorrRej = [0 0 0 0]; % Correct rejection
+
+PictureTypeList = [];
+%Stores all the values of all trials. 1 for target, 0 and -1 for
+%distractors. For example: [1 1 0 0 -1] indicates 5 trials, first 2 trials
+%show targets...
 
 
 % Window-relevant parameters
@@ -115,13 +127,13 @@ NF = size(Im,2);
 ImageList = cell(NF,1);
 TextureList = cell(NF,1);
 for k = 1 : NF
-      X= double(imread(fullfile(ImageFolder, Im(k).name))/255);
-      Z(:,:,1) = X(:,:,1)*(TargetCol(1)-BackgCol(1))+BackgCol(1);
-      Z(:,:,2) = X(:,:,2)*(TargetCol(2)-BackgCol(2))+BackgCol(2);
-      Z(:,:,3) = X(:,:,3)*(TargetCol(3)-BackgCol(3))+BackgCol(3);
-      ImageList{k} = Z;
-      TextureList{k} = Screen('MakeTexture',window,ImageList{k});
-      clear Z;
+        X= double(imread(fullfile(ImageFolder, Im(k).name))/255);
+        Z(:,:,1) = X(:,:,1)*(TargetCol(1)-BackgCol(1))+BackgCol(1);
+        Z(:,:,2) = X(:,:,2)*(TargetCol(2)-BackgCol(2))+BackgCol(2);
+        Z(:,:,3) = X(:,:,3)*(TargetCol(3)-BackgCol(3))+BackgCol(3);
+        ImageList{k} = Z;
+        TextureList{k} = Screen('MakeTexture',window,ImageList{k});
+        clear Z;
 end
 [s1, s2, s3] = size(ImageList{1});
 
@@ -137,7 +149,7 @@ waitFrames = 1;
 screenXpixels;
 MoveArrayCluster=9;
 
-SpeedArray = repmat([200 100 200 100 200  100 200 100 200 100],[50 1]);
+SpeedArray = repmat([200 100 200 100 200  100 200 100 200 100],[400 1]);
 
 [numTrials, numIntervals] = size(SpeedArray);
 PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
@@ -146,123 +158,227 @@ PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
 %% Experimental loop
 Priority(topPriorityLevel);
 
+
 for trial = 1:numTrials
-      % If this is the first trial we present a start screen and wait for
-      % a key press
-      
-      if trial == 1
-            DrawFormattedText(window, 'Press Any Key To Begin', ...
-                  'center', 'center', [255 255 255]);
-            vbl = Screen('Flip', window);
-            KbStrokeWait;
-      end
-      
-      % Initialize the position and select a texture to show
-      ImxCenter = 0;
-      FrameCount = 0;
-      JuiceGiven = [0 0 0 0]; %Indicates whether juice has been given for the trial.
-      TimeJuiceGiven = [0 0 0 0]; %Time that the juice was given. 0 means not given
-      ResetGiven = [0 0 0 0];
-      index = round(rand)+1;
-      ShownTexture = TextureList{index};
-      
-      while ImxCenter < screenXpixels && ~KbCheck
-            %% Draw Stimulus on the screen
-            %Construct the rectangle containing the image, then draw the image
-            imageRect = fnScaleImage(s1,s2,ScaleFactor,...
-                  [ImxCenter yCenter],screenYpixels);
-            Screen('DrawTexture', window, ShownTexture, [], imageRect);
-            
-            %Draw the frame. Frame changes color when the image is inside.
-            if imageRect(1) > xCenter-TargetPosRange && ...
-                        imageRect(3) < xCenter+TargetPosRange
-                  Screen('FrameRect',window, Box2Col, [xCenter-TargetPosRange yCenter-BoxHeight xCenter+TargetPosRange yCenter+BoxHeight],BoxWidth);
-            else
-                  Screen('FrameRect',window, Box1Col, [xCenter-TargetPosRange yCenter-BoxHeight xCenter+TargetPosRange yCenter+BoxHeight],BoxWidth);
-            end
-            
-            %Draw the cross
-            if UseCross
-                  fnDrawFixationCross(FixationCrossSize,window,windowRect,CrossLineWidth);
-            end
-            
-            %% Reward!
-            
-            % Construct a list of 0 and 1 which indicates whether the juice
-            % should be given for each port
-             OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
-                   imageRect(3)< xCenter+TargetPosRange &...
-                   JuiceGiven == 0 & DAQstruct.LickedList == 1;
-            
+        % If this is the first trial we present a start screen and wait for
+        % a key press
+                
+        if trial == 1
+                DrawFormattedText(window, 'Press Any Key To Begin', ...
+                        'center', 'center', [255 255 255]);
+                vbl = Screen('Flip', window);
+                KbStrokeWait;
+        end
+        
+        % Break the cycle if key is pressed.
+        if KbCheck
+              break;  
+        end
+        
+        % Initialize the position and select a texture to show
+        ImxCenter = 0;
+        FrameCount = 0;
+        JuiceGiven = [0 0 0 0]; %Indicates whether juice has been given for the trial.
+             
+        % FPCount counts how many licks on distractors in a trial (similar
+        % to JuiceGiven). Count as a false positive only when FPCount = 0.
+        FPCount = [0 0 0 0];
+        
+        
+        TimeJuiceGiven = [0 0 0 0]; %Time that the juice was given. 0 means not given
+        ResetGiven = [0 0 0 0];
+        index = round(rand*8)+1;
+        PictureTypeList = [PictureTypeList Im(index).val];
+        ShownTexture = TextureList{index};
+        
+        
+        
+        while ImxCenter < screenXpixels && ~KbCheck
+                %% Draw Stimulus on the screen
+                %Construct the rectangle containing the image, then draw the image
+                imageRect = fnScaleImage(s1,s2,ScaleFactor,...
+                        [ImxCenter yCenter],screenYpixels);
+                Screen('DrawTexture', window, ShownTexture, [], imageRect);
+                
+                %Draw the frame. Frame changes color when the image is inside.
+                if imageRect(1) > xCenter-TargetPosRange && ...
+                                imageRect(3) < xCenter+TargetPosRange
+                        Screen('FrameRect',window, Box2Col, [xCenter-TargetPosRange yCenter-BoxHeight xCenter+TargetPosRange yCenter+BoxHeight],BoxWidth);
+                else
+                        Screen('FrameRect',window, Box1Col, [xCenter-TargetPosRange yCenter-BoxHeight xCenter+TargetPosRange yCenter+BoxHeight],BoxWidth);
+                end
+                
+                %Draw the cross
+                if UseCross
+                        fnDrawFixationCross(FixationCrossSize,window,windowRect,CrossLineWidth);
+                end
+                %%
+                %             %% Reward!
+                %
+                %             % Construct a list of 0 and 1 which indicates whether the juice
+                %             % should be given for each port
+                %              OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
+                %                    imageRect(3)< xCenter+TargetPosRange &...
+                %                    JuiceGiven == 0 & DAQstruct.LickedList == 1;
+                
+                %
+                %
+                %             % If a juice is detected...
+                %             if sum(OutputDecisionList) ~= 0
+                %
+                %                   % Update the new port state
+                %                   MainStruct.CurrentPortState = ...
+                %                         MainStruct.CurrentPortState + OutputDecisionList;
+                %
+                %                   % Direct the output ports
+                %                   OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                %
+                %                   StopTimes = StopTimes + OutputDecisionList;
+                %                   if ImmediateReset
+                %                         MainStruct.CurrentPortState = ...
+                %                                 MainStruct.CurrentPortState - OutputDecisionList;
+                %                         OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                %
+                %                   end
+                %
+                %                   %Print out a statement
+                %                   arrayfun(@(x) fprintf('Mouse %d gets reward!\n',x),...
+                %                         find(OutputDecisionList==1));
+                %
+                %                   %Change the JuiceGiven
+                %                   JuiceGiven = JuiceGiven + OutputDecisionList;
+                %                   TimeJuiceGiven = TimeJuiceGiven + OutputDecisionList * GetSecs();
+                %
+                %             end
+                %%
+                % Reward + Keep track of statistics  8/26/14
+                
+                %OutputDecisionList is 1 when the mouse makes a correct lick
+                OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
+                        imageRect(3)< xCenter+TargetPosRange &...
+                        JuiceGiven == 0 & DAQstruct.LickedList == 1 & Im(index).val == 1;
+                
+                                
+                %FalsePosList is 1 when the mouse makes a wrong lick.
+                FalsePosList = imageRect(1)> xCenter-TargetPosRange & ...
+                        imageRect(3)< xCenter+TargetPosRange &...
+                        FPCount == 0 & JuiceGiven == 0 & DAQstruct.LickedList == 1 & Im(index).val ~= 1;
+                
+                
+                              
+                % If a juice is detected...
+                if sum(OutputDecisionList) ~= 0
                         
-            % If a juice is detected...            
-            if sum(OutputDecisionList) ~= 0
-                  
-                  % Update the new port state                  
-                  MainStruct.CurrentPortState = ...
-                        MainStruct.CurrentPortState + OutputDecisionList;
-                  
-                  % Direct the output ports
-                  OutputSession.outputSingleScan(MainStruct.CurrentPortState);
-                  
-                  %Print out a statement
-                  arrayfun(@(x) fprintf('Mouse %d gets reward!\n',x),...
-                        find(OutputDecisionList==1));
-                  
-                  %Change the JuiceGiven
-                  JuiceGiven = JuiceGiven + OutputDecisionList;
-                  TimeJuiceGiven = TimeJuiceGiven + OutputDecisionList * GetSecs();    
-                  
-            end
-            
-            % Should reset detects whether a port should be reset to 0.
-            ShouldReset = TimeJuiceGiven ~= 0 & GetSecs()-TimeJuiceGiven > JuiceTime & ResetGiven == 0;
-                       
-            % After TimeJuiceGiven, reset port to 0... 
-            if sum(ShouldReset) ~= 0
-                  %Update new port state
-                  MainStruct.CurrentPortState = MainStruct.CurrentPortState - ShouldReset;
-                  
-                  %Direct the output ports
-                  OutputSession.outputSingleScan(MainStruct.CurrentPortState);
-                  
-                  OutputSession.outputSingleScan([0 0 0 0]);
-                  
-                  %Change 'ResetGiven'
-                  ResetGiven = ResetGiven + ShouldReset;
-                  
-                  %Print out a statement
-                  arrayfun(@(x) fprintf('Resetting port %d.\n',x),...
-                         find(ShouldReset == 1));     
-            end
-            
-            %% Flip
-            vbl = Screen('Flip',window,vbl + (waitFrames-0.5)*ifi,0,1);
-            %vbl = Screen('AsyncFlipBegin',window,vbl + (waitFrames-0.5)*ifi,0,1);
-            %         vbl = Screen('Flip',window,0,0,1,0);
-            
-            %% Update position
-            %Find the corresponding speed and update center accordingly
-            [m, n] = size(find(PositionArray <= ImxCenter));
-            
-            if SpeedArray(trial,n) == 0
-                  FrameCount = FrameCount + 1;
-            end
-            
-            if FrameCount == NumFramesWaitZeroSpeed;
-                  ImxCenter = ImxCenter + screenXpixels/numIntervals;
-                  FrameCount = 0;
-            end
-            
-            ImxCenter = ImxCenter + ifi*SpeedArray(trial,n);  
-           
-      end  
+                        % Update the new port state
+                        MainStruct.CurrentPortState = ...
+                                MainStruct.CurrentPortState + OutputDecisionList;
+                        
+                        % Direct the output ports
+                        OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                        
+                        StopTimes = StopTimes + OutputDecisionList;
+                        if ImmediateReset
+                                MainStruct.CurrentPortState = ...
+                                        MainStruct.CurrentPortState - OutputDecisionList;
+                                OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                                
+                        end
+                        
+                        %Print out a statement
+                        arrayfun(@(x) fprintf('Mouse %d gets reward!\n',x),...
+                                find(OutputDecisionList==1));
+                        
+                        %Change the JuiceGiven
+                        JuiceGiven = JuiceGiven + OutputDecisionList;
+                        TimeJuiceGiven = TimeJuiceGiven + OutputDecisionList * GetSecs();
+                end
+                
+                % Update other statistics if juice not given
+                if sum(MissedList) ~= 0
+                        Missed = Missed + MissedList;
+                        MissedCount = MissedCount + MissedList;
+                end
+                
+                if sum(FalsePosList) ~= 0
+                        FalsePos = FalsePos + FalsePosList;
+                        FPCount = FPCount + FalsePosList;
+                end
+                
+                if sum(CorrRejList) ~= 0
+                        CorrRej = CorrRej + CorrRejList;
+                        CorrRejCount = CorrRejCount + CorrRejList;
+                end
+                
+                if ~ImmediateReset
+                        % Used when we want the port to open for longer...
+                        
+                        % Should reset detects whether a port should be reset to 0.
+                        ShouldReset = TimeJuiceGiven ~= 0 & GetSecs()-TimeJuiceGiven > JuiceTime & ResetGiven == 0;
+                        
+                        % After JuiceTime, reset port to 0...
+                        if sum(ShouldReset) ~= 0
+                                %Update new port state
+                                MainStruct.CurrentPortState = MainStruct.CurrentPortState - ShouldReset;
+                                
+                                %Direct the output ports
+                                OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                                
+                                
+                                
+                                %Change 'ResetGiven'
+                                ResetGiven = ResetGiven + ShouldReset;
+                                
+                                %Print out a statement
+                                arrayfun(@(x) fprintf('Resetting port %d.\n',x),...
+                                        find(ShouldReset == 1));
+                        end
+                end
+                
+                %% Flip
+                vbl = Screen('Flip',window,vbl + (waitFrames-0.5)*ifi,0,1);
+                %vbl = Screen('AsyncFlipBegin',window,vbl + (waitFrames-0.5)*ifi,0,1);
+                %         vbl = Screen('Flip',window,0,0,1,0);
+                
+                %% Update position
+                %Find the corresponding speed and update center accordingly
+                [m, n] = size(find(PositionArray <= ImxCenter));
+                
+                if SpeedArray(trial,n) == 0
+                        FrameCount = FrameCount + 1;
+                end
+                
+                if FrameCount == NumFramesWaitZeroSpeed;
+                        ImxCenter = ImxCenter + screenXpixels/numIntervals;
+                        FrameCount = 0;
+                end
+                
+                ImxCenter = ImxCenter + ifi*SpeedArray(trial,n);
+                
+        end
 end
 
 Priority(0);
+%% Calculate statistics of missed and Correct Rejection
+Missed = sum(PictureTypeList==1) - StopTimes;
+CorrectRejection = sum(PictureTypeList~=1) - FalsePos;
+numtrials = numel(PictureTypeList);
 
 %% Stop acquistion, clear screen and exit.
 RecSession.stop();
 sca;
+disp('Summary for this run:');
+fprintf('Number of trials = %d. \n',numtrials);
+for i= 1:4
+        numCorrect = StopTimes(i);
+        
+        % Other statistics CT 8/26/14
+        numFalsePos = FalsePos(i);
+        numMissed = Missed(i);
+        numCorrRej = CorrectRejection(i);
+        
+        fprintf('Mouse %d got %d rewards, %d false positives, %d misses, %d correct rejection \n',...
+                i, numCorrect, numFalsePos, numMissed, numCorrRej);
+end
+
 % close all;
 % clear all;
