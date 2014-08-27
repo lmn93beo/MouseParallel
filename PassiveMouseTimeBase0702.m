@@ -38,6 +38,29 @@ disp('Starting background acquisition...');
 RecSession.startBackground();
 MainStruct.InitTime = GetSecs();
 
+
+%% Initialize Sound
+disp('Initializing sound...');
+
+SamplingFreq = 44100;
+t = 0:1/SamplingFreq:1-1/SamplingFreq;
+freq = 400; %Hz, frequency of the tone
+ToneData = sin(2*pi*freq*t);
+
+Channels = size(ToneData,1);          % Number of rows == number of channels.
+
+% Performing a basic initialization of the sound driver
+InitializePsychSound;
+
+% Open the default audio device [], with default mode [] (==Only playback)
+% A required latency class of zero 0 == no low-latency mode
+% A frequency of freq and nrchannels sound channels.  This returns a handle to the audio device:
+Handle = PsychPortAudio('Open', [], [], 0, SamplingFreq, Channels);
+
+% Fill the audio playback buffer with the audio data
+PsychPortAudio('FillBuffer', Handle, ToneData);
+playsound = 1; %Do we want sound?
+
 %% Set image info
 
 ImageFolder = uigetdir(pwd);
@@ -174,9 +197,10 @@ for trial = 1:numTrials
               break;  
         end
         
-        % Initialize the position and select a texture to show
+        %% Initialize the position and select a texture to show
         ImxCenter = 0;
         FrameCount = 0;
+        soundplayed = 0; %Makes sure that the sound is played once.
         JuiceGiven = [0 0 0 0]; %Indicates whether juice has been given for the trial.
              
         % FPCount counts how many licks on distractors in a trial (similar
@@ -191,7 +215,7 @@ for trial = 1:numTrials
         ShownTexture = TextureList{index};
         
         
-        
+        %% Main loop
         while ImxCenter < screenXpixels && ~KbCheck
                 %% Draw Stimulus on the screen
                 %Construct the rectangle containing the image, then draw the image
@@ -212,6 +236,14 @@ for trial = 1:numTrials
                         fnDrawFixationCross(FixationCrossSize,window,windowRect,CrossLineWidth);
                 end
                 
+                %% Play sound
+                %Code copied from Kofiko's MouseWheelDrawCycleNew
+                if imageRect(1) > xCenter-TargetPosRange && soundplayed == 0 && ...
+                                playsound && Im(index).val == 1
+                        PsychPortAudio('Start',Handle,1,0,0); 
+                        soundplayed = 1;
+                end
+                                
                 %% Reward + Keep track of statistics  8/26/14
                 
                 %OutputDecisionList is 1 when the mouse makes a correct lick

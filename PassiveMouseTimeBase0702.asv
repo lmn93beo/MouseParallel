@@ -38,6 +38,28 @@ disp('Starting background acquisition...');
 RecSession.startBackground();
 MainStruct.InitTime = GetSecs();
 
+
+%% Initialize Sound
+disp('Initializing sound...');
+
+SamplingFreq = 44100;
+t = 0:1/SamplingFreq:1-1/SamplingFreq;
+freq = 400; %Hz, frequency of the tone
+ToneData = sin(2*pi*freq*t);
+
+Channels = size(ToneData,1);          % Number of rows == number of channels.
+
+% Performing a basic initialization of the sound driver
+InitializePsychSound;
+
+% Open the default audio device [], with default mode [] (==Only playback)
+% A required latency class of zero 0 == no low-latency mode
+% A frequency of freq and nrchannels sound channels.  This returns a handle to the audio device:
+Handle = PsychPortAudio('Open', [], [], 0, SamplingFreq, Channels);
+
+% Fill the audio playback buffer with the audio data
+PsychPortAudio('FillBuffer', Handle, ToneData);
+
 %% Set image info
 
 ImageFolder = uigetdir(pwd);
@@ -100,13 +122,12 @@ StopTimes = [0 0 0 0]; %Keeps track of number of stop times for each mouse
 
 % Keep track of other performance statistics CT 8/26/14
 FalsePos = [0 0 0 0]; % Lick but not target
-Missed = [0 0 0 0]; % Target but no lick
-CorrRej = [0 0 0 0]; % Correct rejection
 
-PictureTypeList = [];
+
 %Stores all the values of all trials. 1 for target, 0 and -1 for
 %distractors. For example: [1 1 0 0 -1] indicates 5 trials, first 2 trials
 %show targets...
+PictureTypeList = [];
 
 
 % Window-relevant parameters
@@ -175,9 +196,10 @@ for trial = 1:numTrials
               break;  
         end
         
-        % Initialize the position and select a texture to show
+        %% Initialize the position and select a texture to show
         ImxCenter = 0;
         FrameCount = 0;
+        soundplayed = 0; %Makes sure that the sound is played once.
         JuiceGiven = [0 0 0 0]; %Indicates whether juice has been given for the trial.
              
         % FPCount counts how many licks on distractors in a trial (similar
@@ -192,7 +214,7 @@ for trial = 1:numTrials
         ShownTexture = TextureList{index};
         
         
-        
+        %% Main loop
         while ImxCenter < screenXpixels && ~KbCheck
                 %% Draw Stimulus on the screen
                 %Construct the rectangle containing the image, then draw the image
@@ -212,46 +234,17 @@ for trial = 1:numTrials
                 if UseCross
                         fnDrawFixationCross(FixationCrossSize,window,windowRect,CrossLineWidth);
                 end
-                %%
-                %             %% Reward!
-                %
-                %             % Construct a list of 0 and 1 which indicates whether the juice
-                %             % should be given for each port
-                %              OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
-                %                    imageRect(3)< xCenter+TargetPosRange &...
-                %                    JuiceGiven == 0 & DAQstruct.LickedList == 1;
                 
-                %
-                %
-                %             % If a juice is detected...
-                %             if sum(OutputDecisionList) ~= 0
-                %
-                %                   % Update the new port state
-                %                   MainStruct.CurrentPortState = ...
-                %                         MainStruct.CurrentPortState + OutputDecisionList;
-                %
-                %                   % Direct the output ports
-                %                   OutputSession.outputSingleScan(MainStruct.CurrentPortState);
-                %
-                %                   StopTimes = StopTimes + OutputDecisionList;
-                %                   if ImmediateReset
-                %                         MainStruct.CurrentPortState = ...
-                %                                 MainStruct.CurrentPortState - OutputDecisionList;
-                %                         OutputSession.outputSingleScan(MainStruct.CurrentPortState);
-                %
-                %                   end
-                %
-                %                   %Print out a statement
-                %                   arrayfun(@(x) fprintf('Mouse %d gets reward!\n',x),...
-                %                         find(OutputDecisionList==1));
-                %
-                %                   %Change the JuiceGiven
-                %                   JuiceGiven = JuiceGiven + OutputDecisionList;
-                %                   TimeJuiceGiven = TimeJuiceGiven + OutputDecisionList * GetSecs();
-                %
-                %             end
-                %%
-                % Reward + Keep track of statistics  8/26/14
+                %% Play sound
+                if imageRect(1) > xCenter-TargetPosRange && soundplayed == 0
+                        disp('Trying to play sound');
+                        PsychPortAudio('Start',Handle,1,0,0); % Blocking (!!!)
+  
+                        soundplayed = 1;
+                end
+                
+                
+                %% Reward + Keep track of statistics  8/26/14
                 
                 %OutputDecisionList is 1 when the mouse makes a correct lick
                 OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
@@ -264,8 +257,7 @@ for trial = 1:numTrials
                         imageRect(3)< xCenter+TargetPosRange &...
                         FPCount == 0 & JuiceGiven == 0 & DAQstruct.LickedList == 1 & Im(index).val ~= 1;
                 
-                
-                              
+                        
                 % If a juice is detected...
                 if sum(OutputDecisionList) ~= 0
                         
@@ -293,20 +285,10 @@ for trial = 1:numTrials
                         TimeJuiceGiven = TimeJuiceGiven + OutputDecisionList * GetSecs();
                 end
                 
-                % Update other statistics if juice not given
-                if sum(MissedList) ~= 0
-                        Missed = Missed + MissedList;
-                        MissedCount = MissedCount + MissedList;
-                end
-                
+                % Update FalsePosList statistics if juice not given                
                 if sum(FalsePosList) ~= 0
                         FalsePos = FalsePos + FalsePosList;
                         FPCount = FPCount + FalsePosList;
-                end
-                
-                if sum(CorrRejList) ~= 0
-                        CorrRej = CorrRej + CorrRejList;
-                        CorrRejCount = CorrRejCount + CorrRejList;
                 end
                 
                 if ~ImmediateReset
@@ -369,15 +351,9 @@ sca;
 disp('Summary for this run:');
 fprintf('Number of trials = %d. \n',numtrials);
 for i= 1:4
-        numCorrect = StopTimes(i);
-        
-        % Other statistics CT 8/26/14
-        numFalsePos = FalsePos(i);
-        numMissed = Missed(i);
-        numCorrRej = CorrectRejection(i);
-        
+        % Other statistics added CT 8/26/14         
         fprintf('Mouse %d got %d rewards, %d false positives, %d misses, %d correct rejection \n',...
-                i, numCorrect, numFalsePos, numMissed, numCorrRej);
+                i, StopTimes(i), FalsePos(i), Missed(i), CorrectRejection(i));
 end
 
 % close all;
