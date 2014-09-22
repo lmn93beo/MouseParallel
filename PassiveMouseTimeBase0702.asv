@@ -3,6 +3,7 @@ close all;
 clear all;
 
 global MainStruct DAQstruct
+global all_scans all_TimeStamps
 
 %% Initialize DAQ Devices
 DAQstruct.LickedList = [0 0 0 0];
@@ -18,7 +19,8 @@ OutputSession = daq.createSession('ni');
 
 %Add channels
 disp('Adding channels...');
-RecSession.addAnalogInputChannel('Dev1',{'ai0','ai1','ai2','ai3'},'Voltage');
+recports = {'ai0','ai1','ai2','ai3'};
+RecSession.addAnalogInputChannel('Dev1',recports,'Voltage');
 OutputSession.addDigitalChannel('Dev2',['port0/line2','port0/line1',...
         'port0/line0','port0/line3'],'OutputOnly');
 
@@ -38,27 +40,27 @@ disp('Starting background acquisition...');
 RecSession.startBackground();
 MainStruct.InitTime = GetSecs();
 
-
 %% Initialize Sound
-disp('Initializing sound...');
-
-SamplingFreq = 44100;
-t = 0:1/SamplingFreq:1-1/SamplingFreq;
-freq = 400; %Hz, frequency of the tone
-ToneData = sin(2*pi*freq*t);
-
-Channels = size(ToneData,1);          % Number of rows == number of channels.
-
-% Performing a basic initialization of the sound driver
-InitializePsychSound;
-
-% Open the default audio device [], with default mode [] (==Only playback)
-% A required latency class of zero 0 == no low-latency mode
-% A frequency of freq and nrchannels sound channels.  This returns a handle to the audio device:
-Handle = PsychPortAudio('Open', [], [], 0, SamplingFreq, Channels);
-
-% Fill the audio playback buffer with the audio data
-PsychPortAudio('FillBuffer', Handle, ToneData);
+% disp('Initializing sound...');
+% 
+% SamplingFreq = 44100;
+% t = 0:1/SamplingFreq:1-1/SamplingFreq;
+% freq = 400; %Hz, frequency of the tone
+% ToneData = sin(2*pi*freq*t);
+% 
+% Channels = size(ToneData,1);          % Number of rows == number of channels.
+% 
+% % Performing a basic initialization of the sound driver
+% InitializePsychSound;
+% 
+% % Open the default audio device [], with default mode [] (==Only playback)
+% % A required latency class of zero 0 == no low-latency mode
+% % A frequency of freq and nrchannels sound channels.  This returns a handle to the audio device:
+% Handle = PsychPortAudio('Open', [], [], 0, SamplingFreq, Channels);
+% 
+% % Fill the audio playback buffer with the audio data
+% PsychPortAudio('FillBuffer', Handle, ToneData);
+% playsound = 0; %Do we want sound?
 
 %% Set image info
 
@@ -116,7 +118,7 @@ BoxWidth=30;
 NumFramesWaitZeroSpeed = 100;
 
 %Juice information
-JuiceTime = 0.01;
+JuiceTime = 0.005;
 ImmediateReset = 1;
 StopTimes = [0 0 0 0]; %Keeps track of number of stop times for each mouse
 
@@ -167,10 +169,10 @@ waitFrames = 1;
 % one trial)
 
 
-screenXpixels;
+screenXpixels; 
 MoveArrayCluster=9;
 
-SpeedArray = repmat([200 100 200 100 200  100 200 100 200 100],[400 1]);
+SpeedArray = repmat([200 200 200 200 200  200 200 200 200 200],[300 1]);
 
 [numTrials, numIntervals] = size(SpeedArray);
 PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
@@ -209,7 +211,7 @@ for trial = 1:numTrials
         
         TimeJuiceGiven = [0 0 0 0]; %Time that the juice was given. 0 means not given
         ResetGiven = [0 0 0 0];
-        index = round(rand*8)+1;
+        index = round(rand)+1;
         PictureTypeList = [PictureTypeList Im(index).val];
         ShownTexture = TextureList{index};
         
@@ -235,15 +237,14 @@ for trial = 1:numTrials
                         fnDrawFixationCross(FixationCrossSize,window,windowRect,CrossLineWidth);
                 end
                 
-                %% Play sound
-                if imageRect(1) > xCenter-TargetPosRange && soundplayed == 0
-                        disp('Trying to play sound');
-                        PsychPortAudio('Start',Handle,1,0,0); % Blocking (!!!)
-  
-                        soundplayed = 1;
-                end
-                
-                
+%                 %% Play sound
+%                 %Code copied from Kofiko's MouseWheelDrawCycleNew
+%                 if imageRect(1) > xCenter-TargetPosRange && soundplayed == 0 && ...
+%                                 playsound && Im(index).val == 1
+%                         PsychPortAudio('Start',Handle,1,0,0); 
+%                         soundplayed = 1;
+%                 end
+                                
                 %% Reward + Keep track of statistics  8/26/14
                 
                 %OutputDecisionList is 1 when the mouse makes a correct lick
@@ -265,11 +266,13 @@ for trial = 1:numTrials
                         MainStruct.CurrentPortState = ...
                                 MainStruct.CurrentPortState + OutputDecisionList;
                         
-                        % Direct the output ports
-                        OutputSession.outputSingleScan(MainStruct.CurrentPortState);
-                        
                         StopTimes = StopTimes + OutputDecisionList;
-                        if ImmediateReset
+                                             
+                        if ImmediateReset 
+                                % Direct the output ports
+                                OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                                
+                                % Close port immediately
                                 MainStruct.CurrentPortState = ...
                                         MainStruct.CurrentPortState - OutputDecisionList;
                                 OutputSession.outputSingleScan(MainStruct.CurrentPortState);
@@ -347,14 +350,38 @@ numtrials = numel(PictureTypeList);
 
 %% Stop acquistion, clear screen and exit.
 RecSession.stop();
+currenttime = datestr(clock(),'mmdd-HHMM');
+
+filename = sprintf('.\\Logs\\%s.txt',currenttime);
+file = fopen(filename,'at');
 sca;
 disp('Summary for this run:');
 fprintf('Number of trials = %d. \n',numtrials);
+fprintf(file,'Mouse,Rewards,False.Positives,Misses,Correct.Rejections\n');
 for i= 1:4
         % Other statistics added CT 8/26/14         
-        fprintf('Mouse %d got %d rewards, %d false positives, %d misses, %d correct rejection \n',...
+        fprintf(file,'%i,%i,%i,%i,%i\n',...
+                i, StopTimes(i), FalsePos(i), Missed(i), CorrectRejection(i));
+        fprintf('Mouse %i got %i rewards, %i false positives, %i misses, %i correct rejection \n',...
                 i, StopTimes(i), FalsePos(i), Missed(i), CorrectRejection(i));
 end
+fclose(file);
 
-% close all;
-% clear all;
+filename = sprintf('.\\ScanHistory\\%s.txt',currenttime);
+file = fopen(filename,'at');
+fprintf(file, 'Time');
+for i = 1:numel(recports)
+        fprintf(file,'%s',recports{i});
+end
+
+fprintf(file,'\n');
+
+for i = 1:numel(all_TimeStamps)
+        fprintf(file,'%d',all_TimeStamps(i));
+        for j = 1:numel(recports)
+                fprintf(file, 'd'
+
+fclose(file);
+
+close all;
+clear all;

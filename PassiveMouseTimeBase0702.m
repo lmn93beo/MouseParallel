@@ -3,6 +3,7 @@ close all;
 clear all;
 
 global MainStruct DAQstruct
+global all_scans all_TimeStamps
 
 %% Initialize DAQ Devices
 DAQstruct.LickedList = [0 0 0 0];
@@ -18,7 +19,8 @@ OutputSession = daq.createSession('ni');
 
 %Add channels
 disp('Adding channels...');
-RecSession.addAnalogInputChannel('Dev1',{'ai0','ai1','ai2','ai3'},'Voltage');
+recports = {'ai0','ai1','ai2','ai3'};
+RecSession.addAnalogInputChannel('Dev1',recports,'Voltage');
 OutputSession.addDigitalChannel('Dev2',['port0/line2','port0/line1',...
         'port0/line0','port0/line3'],'OutputOnly');
 
@@ -348,7 +350,10 @@ numtrials = numel(PictureTypeList);
 
 %% Stop acquistion, clear screen and exit.
 RecSession.stop();
-filename = sprintf('.\\Logs\\%s.txt',datestr(clock(),'mmdd-HHMM'));
+currenttime = datestr(clock(),'mmdd-HHMM');
+
+% Write trial summary into output file
+filename = sprintf('.\\Logs\\%s.txt',currenttime);
 file = fopen(filename,'at');
 sca;
 disp('Summary for this run:');
@@ -362,5 +367,27 @@ for i= 1:4
                 i, StopTimes(i), FalsePos(i), Missed(i), CorrectRejection(i));
 end
 fclose(file);
-% close all;
-% clear all;
+
+
+% Write recordings summary to output file
+filename = sprintf('.\\ScanHistory\\%s.txt',currenttime);
+file = fopen(filename,'at');
+fprintf(file, 'Time,');
+for i = 1:numel(recports)
+        fprintf(file,'%s,',recports{i});
+end
+
+fprintf(file,'\n');
+
+for i = 1:numel(all_TimeStamps)
+        fprintf(file,'%d,',all_TimeStamps(i));
+        for j = 1:numel(recports)
+                fprintf(file, '%d,',all_scans(i,j));
+        end
+        fprintf(file,'\n');
+end
+
+fclose(file);
+
+%close all;
+%clear all;
