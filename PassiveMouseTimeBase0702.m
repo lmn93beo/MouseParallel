@@ -349,13 +349,16 @@ numtrials = numel(PictureTypeList);
 %% Stop acquistion, clear screen and exit.
 RecSession.stop();
 filename = sprintf('.\\Logs\\%s.txt',datestr(clock(),'mmdd-HHMM'));
-file = fopen(filename,'w');
+file = fopen(filename,'at');
 sca;
 disp('Summary for this run:');
 fprintf('Number of trials = %d. \n',numtrials);
+fprintf(file,'Mouse,Rewards,False.Positives,Misses,Correct.Rejections\n');
 for i= 1:4
         % Other statistics added CT 8/26/14         
-        fprintf(file,'Mouse %d got %d rewards, %d false positives, %d misses, %d correct rejection \n',...
+        fprintf(file,'%i,%i,%i,%i,%i\n',...
+                i, StopTimes(i), FalsePos(i), Missed(i), CorrectRejection(i));
+        fprintf('Mouse %i got %i rewards, %i false positives, %i misses, %i correct rejection \n',...
                 i, StopTimes(i), FalsePos(i), Missed(i), CorrectRejection(i));
 end
 fclose(file);
