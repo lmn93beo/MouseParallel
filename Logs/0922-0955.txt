@@ -1,0 +1,4 @@
+Mouse 1 got 0 rewards, 0 false positives, 1 misses, 0 correct rejection 
+Mouse 2 got 0 rewards, 0 false positives, 1 misses, 0 correct rejection 
+Mouse 3 got 0 rewards, 0 false positives, 1 misses, 0 correct rejection 
+Mouse 4 got 0 rewards, 0 false positives, 1 misses, 0 correct rejection 

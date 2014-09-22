@@ -38,28 +38,27 @@ disp('Starting background acquisition...');
 RecSession.startBackground();
 MainStruct.InitTime = GetSecs();
 
-
 %% Initialize Sound
-disp('Initializing sound...');
-
-SamplingFreq = 44100;
-t = 0:1/SamplingFreq:1-1/SamplingFreq;
-freq = 400; %Hz, frequency of the tone
-ToneData = sin(2*pi*freq*t);
-
-Channels = size(ToneData,1);          % Number of rows == number of channels.
-
-% Performing a basic initialization of the sound driver
-InitializePsychSound;
-
-% Open the default audio device [], with default mode [] (==Only playback)
-% A required latency class of zero 0 == no low-latency mode
-% A frequency of freq and nrchannels sound channels.  This returns a handle to the audio device:
-Handle = PsychPortAudio('Open', [], [], 0, SamplingFreq, Channels);
-
-% Fill the audio playback buffer with the audio data
-PsychPortAudio('FillBuffer', Handle, ToneData);
-playsound = 1; %Do we want sound?
+% disp('Initializing sound...');
+% 
+% SamplingFreq = 44100;
+% t = 0:1/SamplingFreq:1-1/SamplingFreq;
+% freq = 400; %Hz, frequency of the tone
+% ToneData = sin(2*pi*freq*t);
+% 
+% Channels = size(ToneData,1);          % Number of rows == number of channels.
+% 
+% % Performing a basic initialization of the sound driver
+% InitializePsychSound;
+% 
+% % Open the default audio device [], with default mode [] (==Only playback)
+% % A required latency class of zero 0 == no low-latency mode
+% % A frequency of freq and nrchannels sound channels.  This returns a handle to the audio device:
+% Handle = PsychPortAudio('Open', [], [], 0, SamplingFreq, Channels);
+% 
+% % Fill the audio playback buffer with the audio data
+% PsychPortAudio('FillBuffer', Handle, ToneData);
+% playsound = 0; %Do we want sound?
 
 %% Set image info
 
@@ -117,7 +116,7 @@ BoxWidth=30;
 NumFramesWaitZeroSpeed = 100;
 
 %Juice information
-JuiceTime = 0.01;
+JuiceTime = 0.005;
 ImmediateReset = 1;
 StopTimes = [0 0 0 0]; %Keeps track of number of stop times for each mouse
 
@@ -168,10 +167,10 @@ waitFrames = 1;
 % one trial)
 
 
-screenXpixels;
+screenXpixels; 
 MoveArrayCluster=9;
 
-SpeedArray = repmat([200 100 200 100 200  100 200 100 200 100],[400 1]);
+SpeedArray = repmat([200 200 200 200 200  200 200 200 200 200],[300 1]);
 
 [numTrials, numIntervals] = size(SpeedArray);
 PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
@@ -210,7 +209,7 @@ for trial = 1:numTrials
         
         TimeJuiceGiven = [0 0 0 0]; %Time that the juice was given. 0 means not given
         ResetGiven = [0 0 0 0];
-        index = round(rand*8)+1;
+        index = round(rand)+1;
         PictureTypeList = [PictureTypeList Im(index).val];
         ShownTexture = TextureList{index};
         
@@ -236,13 +235,13 @@ for trial = 1:numTrials
                         fnDrawFixationCross(FixationCrossSize,window,windowRect,CrossLineWidth);
                 end
                 
-                %% Play sound
-                %Code copied from Kofiko's MouseWheelDrawCycleNew
-                if imageRect(1) > xCenter-TargetPosRange && soundplayed == 0 && ...
-                                playsound && Im(index).val == 1
-                        PsychPortAudio('Start',Handle,1,0,0); 
-                        soundplayed = 1;
-                end
+%                 %% Play sound
+%                 %Code copied from Kofiko's MouseWheelDrawCycleNew
+%                 if imageRect(1) > xCenter-TargetPosRange && soundplayed == 0 && ...
+%                                 playsound && Im(index).val == 1
+%                         PsychPortAudio('Start',Handle,1,0,0); 
+%                         soundplayed = 1;
+%                 end
                                 
                 %% Reward + Keep track of statistics  8/26/14
                 
@@ -265,11 +264,13 @@ for trial = 1:numTrials
                         MainStruct.CurrentPortState = ...
                                 MainStruct.CurrentPortState + OutputDecisionList;
                         
-                        % Direct the output ports
-                        OutputSession.outputSingleScan(MainStruct.CurrentPortState);
-                        
                         StopTimes = StopTimes + OutputDecisionList;
-                        if ImmediateReset
+                                             
+                        if ImmediateReset 
+                                % Direct the output ports
+                                OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                                
+                                % Close port immediately
                                 MainStruct.CurrentPortState = ...
                                         MainStruct.CurrentPortState - OutputDecisionList;
                                 OutputSession.outputSingleScan(MainStruct.CurrentPortState);
@@ -347,14 +348,16 @@ numtrials = numel(PictureTypeList);
 
 %% Stop acquistion, clear screen and exit.
 RecSession.stop();
+filename = sprintf('.\\Logs\\%s.txt',datestr(clock(),'mmdd-HHMM'));
+file = fopen(filename,'w');
 sca;
 disp('Summary for this run:');
 fprintf('Number of trials = %d. \n',numtrials);
 for i= 1:4
         % Other statistics added CT 8/26/14         
-        fprintf('Mouse %d got %d rewards, %d false positives, %d misses, %d correct rejection \n',...
+        fprintf(file,'Mouse %d got %d rewards, %d false positives, %d misses, %d correct rejection \n',...
                 i, StopTimes(i), FalsePos(i), Missed(i), CorrectRejection(i));
 end
-
+fclose(file);
 % close all;
 % clear all;
