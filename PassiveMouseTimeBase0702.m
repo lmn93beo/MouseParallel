@@ -6,39 +6,10 @@ global MainStruct DAQstruct
 global all_scans all_TimeStamps
 
 %% Initialize DAQ Devices
-DAQstruct.LickedList = [0 0 0 0];
-
-disp('Getting devices...');
-daq.getDevices();
-
-% Create two sessions - one for continuous background recording and
-% one for output and then set parameters for each of them.
-RecSession = daq.createSession('ni');
-RecSession.Rate = 10; %rate of sampling per second
-OutputSession = daq.createSession('ni');
-
-%Add channels
-disp('Adding channels...');
 recports = {'ai0','ai1','ai2','ai3'};
-RecSession.addAnalogInputChannel('Dev1',recports,'Voltage');
-OutputSession.addDigitalChannel('Dev2',['port0/line2','port0/line1',...
-        'port0/line0','port0/line3'],'OutputOnly');
+outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
 
-%Initialize port statesstop to be all 0.
-OutputSession.outputSingleScan([0 0 0 0]);
-MainStruct.CurrentPortState = [0 0 0 0];
-
-%Add listener for background listening
-lh = RecSession.addlistener('DataAvailable', @plotData);
-RecSession.NotifyWhenDataAvailableExceeds = 5;
-
-% RecSession will run forever until it is told to stop
-RecSession.IsContinuous = true;
-
-% Start the acquisition
-disp('Starting background acquisition...');
-RecSession.startBackground();
-MainStruct.InitTime = GetSecs();
+RecSession = InitDAQ(recports,outputports);
 
 %% Initialize Sound
 % disp('Initializing sound...');

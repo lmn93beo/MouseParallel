@@ -6,39 +6,43 @@ global MainStruct DAQstruct
 global all_scans all_TimeStamps
 
 %% Initialize DAQ Devices
-DAQstruct.LickedList = [0 0 0 0];
-
-disp('Getting devices...');
-daq.getDevices();
-
-% Create two sessions - one for continuous background recording and
-% one for output and then set parameters for each of them.
-RecSession = daq.createSession('ni');
-RecSession.Rate = 10; %rate of sampling per second
-OutputSession = daq.createSession('ni');
-
-%Add channels
-disp('Adding channels...');
 recports = {'ai0','ai1','ai2','ai3'};
-RecSession.addAnalogInputChannel('Dev1',recports,'Voltage');
-OutputSession.addDigitalChannel('Dev2',['port0/line2','port0/line1',...
-        'port0/line0','port0/line3'],'OutputOnly');
 
-%Initialize port statesstop to be all 0.
-OutputSession.outputSingleScan([0 0 0 0]);
-MainStruct.CurrentPortState = [0 0 0 0];
 
-%Add listener for background listening
-lh = RecSession.addlistener('DataAvailable', @plotData);
-RecSession.NotifyWhenDataAvailableExceeds = 5;
-
-% RecSession will run forever until it is told to stop
-RecSession.IsContinuous = true;
-
-% Start the acquisition
-disp('Starting background acquisition...');
-RecSession.startBackground();
-MainStruct.InitTime = GetSecs();
+RecSession = InitDAQ;
+% DAQstruct.LickedList = [0 0 0 0];
+% 
+% disp('Getting devices...');
+% daq.getDevices();
+% 
+% % Create two sessions - one for continuous background recording and
+% % one for output and then set parameters for each of them.
+% RecSession = daq.createSession('ni');
+% RecSession.Rate = 10; %rate of sampling per second
+% OutputSession = daq.createSession('ni');
+% 
+% %Add channels
+% disp('Adding channels...');
+% recports = {'ai0','ai1','ai2','ai3'};
+% RecSession.addAnalogInputChannel('Dev1',recports,'Voltage');
+% OutputSession.addDigitalChannel('Dev2',['port0/line2','port0/line1',...
+%         'port0/line0','port0/line3'],'OutputOnly');
+% 
+% %Initialize port statesstop to be all 0.
+% OutputSession.outputSingleScan([0 0 0 0]);
+% MainStruct.CurrentPortState = [0 0 0 0];
+% 
+% %Add listener for background listening
+% lh = RecSession.addlistener('DataAvailable', @plotData);
+% RecSession.NotifyWhenDataAvailableExceeds = 5;
+% 
+% % RecSession will run forever until it is told to stop
+% RecSession.IsContinuous = true;
+% 
+% % Start the acquisition
+% disp('Starting background acquisition...');
+% RecSession.startBackground();
+% MainStruct.InitTime = GetSecs();
 
 %% Initialize Sound
 % disp('Initializing sound...');
@@ -352,6 +356,7 @@ numtrials = numel(PictureTypeList);
 RecSession.stop();
 currenttime = datestr(clock(),'mmdd-HHMM');
 
+% Write trial summary into output file
 filename = sprintf('.\\Logs\\%s.txt',currenttime);
 file = fopen(filename,'at');
 sca;
@@ -367,21 +372,26 @@ for i= 1:4
 end
 fclose(file);
 
+
+% Write recordings summary to output file
 filename = sprintf('.\\ScanHistory\\%s.txt',currenttime);
 file = fopen(filename,'at');
-fprintf(file, 'Time');
+fprintf(file, 'Time,');
 for i = 1:numel(recports)
-        fprintf(file,'%s',recports{i});
+        fprintf(file,'%s,',recports{i});
 end
 
 fprintf(file,'\n');
 
 for i = 1:numel(all_TimeStamps)
-        fprintf(file,'%d',all_TimeStamps(i));
+        fprintf(file,'%d,',all_TimeStamps(i));
         for j = 1:numel(recports)
-                fprintf(file, 'd'
+                fprintf(file, '%d,',all_scans(i,j));
+        end
+        fprintf(file,'\n');
+end
 
 fclose(file);
 
-close all;
-clear all;
+%close all;
+%clear all;
