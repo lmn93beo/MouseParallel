@@ -34,8 +34,6 @@ vbl = Screen('Flip',window,vbl+singleflashTime/2);
 vbl = Screen('Flip',window,vbl+blankTime);
 
 % Check num licks again. If non-zero, give punishment!
-if sum(MainStruct.numLicks) ~= 0
-        arrayfun(@(x) fprintf('Mouse %d gets punished!\n',x),...
-                                find(MainStruct.numLicks~=0));
-end
+if sum(MainStruct.
+
 end

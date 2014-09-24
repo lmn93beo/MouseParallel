@@ -3,6 +3,7 @@ function [RecSession, OutputSession] = InitDAQ(recports,outputports)
 global MainStruct DAQstruct
 
 DAQstruct.LickedList = [0 0 0 0];
+MainStruct.numLicks = [0 0 0 0];
 
 disp('Getting devices...');
 daq.getDevices();

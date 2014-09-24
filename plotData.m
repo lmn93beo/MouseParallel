@@ -11,6 +11,7 @@ maxReadings = max(event.Data);
 DAQstruct.LickedList = maxReadings > 0.2;
 if sum(DAQstruct.LickedList) ~= 0
         disp('Yup!');
+        MainStruct.numLicks = MainStruct.numLicks + DAQstruct.LickedList;
 end
 
 %fprintf('%f: Acquired %d scans...\n',GetSecs()-MainStruct.InitTime,size(event.TimeStamps,1));
