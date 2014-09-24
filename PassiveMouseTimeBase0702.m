@@ -9,7 +9,7 @@ global all_scans all_TimeStamps
 recports = {'ai0','ai1','ai2','ai3'};
 outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
 
-RecSession = InitDAQ(recports,outputports);
+[RecSession, OutputSession] = InitDAQ(recports,outputports);
 
 %% Initialize Sound
 % disp('Initializing sound...');
@@ -138,9 +138,6 @@ waitFrames = 1;
 % Divide the horizontal length into equal intervals.
 % In each interval the speed is specified in SpeedArray. (each row represents
 % one trial)
-
-
-screenXpixels; 
 MoveArrayCluster=9;
 
 SpeedArray = repmat([200 200 200 200 200  200 200 200 200 200],[300 1]);
@@ -160,7 +157,7 @@ for trial = 1:numTrials
         if trial == 1
                 DrawFormattedText(window, 'Press Any Key To Begin', ...
                         'center', 'center', [255 255 255]);
-                vbl = Screen('Flip', window);
+                Screen('Flip', window);
                 KbStrokeWait;
         end
         
@@ -168,6 +165,13 @@ for trial = 1:numTrials
         if KbCheck
               break;  
         end
+        
+        %% Draw initial blank screen and flash
+        blankTime = 1;
+        flashTime = 0.8;
+        flashimage = 'flash.bmp';
+        
+        vbl = fndrawflash(window,xCenter,yCenter,flashimage,blankTime,flashTime,BackgCol);
         
         %% Initialize the position and select a texture to show
         ImxCenter = 0;
@@ -321,6 +325,7 @@ numtrials = numel(PictureTypeList);
 
 %% Stop acquistion, clear screen and exit.
 RecSession.stop();
+OutputSession.stop();
 currenttime = datestr(clock(),'mmdd-HHMM');
 
 % Write trial summary into output file
@@ -359,6 +364,7 @@ for i = 1:numel(all_TimeStamps)
 end
 
 fclose(file);
+clear all;
 
 %close all;
 %clear all;

@@ -1,4 +1,4 @@
-function RecSession = InitDAQ(recports,outputports)
+function [RecSession, OutputSession] = InitDAQ(recports,outputports)
 
 global MainStruct DAQstruct
 
