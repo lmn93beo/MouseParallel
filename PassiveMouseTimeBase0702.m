@@ -246,11 +246,15 @@ for trial = 1:numTrials
                         if ImmediateReset 
                                 % Direct the output ports
                                 OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                                disp('Reward given. Current state is ');
+                                disp(MainStruct.CurrentPortState);
                                 
                                 % Close port immediately
                                 MainStruct.CurrentPortState = ...
                                         MainStruct.CurrentPortState - OutputDecisionList;
                                 OutputSession.outputSingleScan(MainStruct.CurrentPortState);
+                                disp('Reset made. Current state is ');
+                                disp(MainStruct.CurrentPortState);
                                 
                         end
                         
