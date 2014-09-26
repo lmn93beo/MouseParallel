@@ -2,12 +2,15 @@
 close all;
 clear all;
 
+addpath(genpath('.\'));
+
 global MainStruct DAQstruct LickLog
 
 
-%% Initialize DAQ Devicesjr
+%% Initialize DAQ Devices
 recports = {'ai0','ai1','ai2','ai3'};
 outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
+num_mice = length(recports);
 
 [RecSession, OutputSession] = InitDAQ(recports,outputports);
 
@@ -39,29 +42,9 @@ ImageFolder = uigetdir(pwd);
 
 % Image struct array - contains image name and value
 % values 1= target or right; 0 = neutral or no reward; -1= punish stop or left
+Im = fnSetImageInfo();
 
-Im(1).name='H.bmp';
-Im(1).val=1;
-Im(2).name='Hor.bmp';
-Im(2).val=1;
-Im(3).name='Vert.bmp';
-Im(3).val=1;
 
-Im(4).name='X.bmp';
-Im(4).val=-1;
-Im(5).name='Diag1.bmp';
-Im(5).val=-1;
-Im(6).name='Diag2.bmp';
-Im(6).val=-1;
-
-Im(7).name='O.bmp';
-Im(7).val=0;
-Im(8).name='OInvert.bmp';
-Im(8).val=0;
-Im(9).name='Black.bmp';
-Im(9).val=0;
-Im(10).name='White.bmp';
-Im(10).val=0;
 
 
 
@@ -74,28 +57,20 @@ screenNumber = 0;
 
 
 %% Stimulus information
+[ScaleFactor, TargetPosRange, FixationCrossSize, UseCross, CrossLineWidth,...
+        BackgCol, TargetCol, Box1Col, Box2Col, BoxHeight, BoxWidth, ...
+        NumFramesWaitZeroSpeed] = fnStimulusInfo();
 
-ScaleFactor = 0.5 ; %How big the image is relative to the full screen height
-TargetPosRange = 500; %Size of target box(from center-range to center+range)
-FixationCrossSize = 40;
-UseCross=0;
-CrossLineWidth=8;
-BackgCol=[127 127 127];
-TargetCol=[0 0 0];
-Box1Col=[40 40 40];
-Box2Col=[200 200 200];
-BoxHeight=350;
-BoxWidth=30;
-NumFramesWaitZeroSpeed = 100;
+%% Juice information
 
-%Juice information
 JuiceTime = 0.005;
 ImmediateReset = 1;
-StopTimes = [0 0 0 0]; %Keeps track of number of stop times for each mouse
+
+%Keeps track of number of stop times for each mouse
+StopTimes = zeros(1,num_mice); 
 
 % Keep track of other performance statistics CT 8/26/14
-FalsePos = [0 0 0 0]; % Lick but not target
-
+FalsePos = zeros(1,num_mice); % Lick but not target
 
 %Stores all the values of all trials. 1 for target, 0 and -1 for
 %distractors. For example: [1 1 0 0 -1] indicates 5 trials, first 2 trials
@@ -103,7 +78,7 @@ FalsePos = [0 0 0 0]; % Lick but not target
 PictureTypeList = [];
 
 
-% Window-relevant parameters
+%% Window-relevant parameters
 [window, windowRect] = Screen('OpenWindow', screenNumber, BackgCol);
 
 %Get relevant screen parameters:
@@ -177,15 +152,15 @@ for trial = 1:numTrials
         ImxCenter = 0;
         FrameCount = 0;
         soundplayed = 0; %Makes sure that the sound is played once.
-        JuiceGiven = [0 0 0 0]; %Indicates whether juice has been given for the trial.
+        JuiceGiven = zeros(1,num_mice); %Indicates whether juice has been given for the trial.
              
         % FPCount counts how many licks on distractors in a trial (similar
         % to JuiceGiven). Count as a false positive only when FPCount = 0.
-        FPCount = [0 0 0 0];
+        FPCount = zeros(1,num_mice);
         
         
-        TimeJuiceGiven = [0 0 0 0]; %Time that the juice was given. 0 means not given
-        ResetGiven = [0 0 0 0];
+        TimeJuiceGiven = zeros(1,num_mice); %Time that the juice was given. 0 means not given
+        ResetGiven = zeros(1,num_mice);
         index = round(rand)+1;
         PictureTypeList = [PictureTypeList Im(index).val];
         ShownTexture = TextureList{index};

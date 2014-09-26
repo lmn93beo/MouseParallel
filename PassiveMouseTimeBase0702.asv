@@ -2,10 +2,12 @@
 close all;
 clear all;
 
+addpath(genpath('.\'));
+
 global MainStruct DAQstruct LickLog
 
 
-%% Initialize DAQ Devicesj
+%% Initialize DAQ Devices
 recports = {'ai0','ai1','ai2','ai3'};
 outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
 
@@ -88,7 +90,8 @@ BoxHeight=350;
 BoxWidth=30;
 NumFramesWaitZeroSpeed = 100;
 
-%Juice information
+%% Juice information
+
 JuiceTime = 0.005;
 ImmediateReset = 1;
 StopTimes = [0 0 0 0]; %Keeps track of number of stop times for each mouse
@@ -103,7 +106,7 @@ FalsePos = [0 0 0 0]; % Lick but not target
 PictureTypeList = [];
 
 
-% Window-relevant parameters
+%% Window-relevant parameters
 [window, windowRect] = Screen('OpenWindow', screenNumber, BackgCol);
 
 %Get relevant screen parameters:
