@@ -37,46 +37,30 @@ num_mice = length(recports);
 % playsound = 0; %Do we want sound?
 
 %% Set image info
-
-ImageFolder = uigetdir(pwd);
-
 % Image struct array - contains image name and value
 % values 1= target or right; 0 = neutral or no reward; -1= punish stop or left
 Im = fnSetImageInfo();
-
-
-
+ImageFolder = uigetdir(pwd);
 
 
 %% Initialize and open screen
-
 Screen('Preference', 'SkipSyncTests', 1 );
 
 screens = Screen('Screens');
 screenNumber = 0;
 
-
 %% Stimulus information
 [ScaleFactor, TargetPosRange, FixationCrossSize, UseCross, CrossLineWidth,...
         BackgCol, TargetCol, Box1Col, Box2Col, BoxHeight, BoxWidth, ...
-        NumFramesWaitZeroSpeed] = fnStimulusInfo();
+        NumFramesWaitZeroSpeed, SpeedArray, blankTime, flashTime, flashimage] = fnStimulusInfo();
 
 %% Juice information
 
 JuiceTime = 0.005;
 ImmediateReset = 1;
 
-%Keeps track of number of stop times for each mouse
-StopTimes = zeros(1,num_mice); 
-
-% Keep track of other performance statistics CT 8/26/14
-FalsePos = zeros(1,num_mice); % Lick but not target
-
-%Stores all the values of all trials. 1 for target, 0 and -1 for
-%distractors. For example: [1 1 0 0 -1] indicates 5 trials, first 2 trials
-%show targets...
-PictureTypeList = [];
-
+%% Initialize structs to keep track of performance
+[StopTimes, FalsePos, PictureTypeList] = fnInitLog(num_mice);
 
 %% Window-relevant parameters
 [window, windowRect] = Screen('OpenWindow', screenNumber, BackgCol);
@@ -88,23 +72,8 @@ PictureTypeList = [];
 % Set the priority level that will be called
 topPriorityLevel = MaxPriority(window);
 
-
-
 %% Initialize images
-
-NF = size(Im,2);
-ImageList = cell(NF,1);
-TextureList = cell(NF,1);
-for k = 1 : NF
-        X= double(imread(fullfile(ImageFolder, Im(k).name))/255);
-        Z(:,:,1) = X(:,:,1)*(TargetCol(1)-BackgCol(1))+BackgCol(1);
-        Z(:,:,2) = X(:,:,2)*(TargetCol(2)-BackgCol(2))+BackgCol(2);
-        Z(:,:,3) = X(:,:,3)*(TargetCol(3)-BackgCol(3))+BackgCol(3);
-        ImageList{k} = Z;
-        TextureList{k} = Screen('MakeTexture',window,ImageList{k});
-        clear Z;
-end
-[s1, s2, s3] = size(ImageList{1});
+[TextureList, s1, s2] = fnInitImages(ImageFolder, Im, TargetCol, BackgCol, window);
 
 %% Timing information
 ifi = Screen('GetFlipInterval', window);
@@ -113,17 +82,11 @@ waitFrames = 1;
 % Divide the horizontal length into equal intervals.
 % In each interval the speed is specified in SpeedArray. (each row represents
 % one trial)
-MoveArrayCluster=9;
-
-SpeedArray = repmat([200 200 200 200 200  200 200 200 200 200],[300 1]);
-
 [numTrials, numIntervals] = size(SpeedArray);
 PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
 
-
 %% Experimental loop
 Priority(topPriorityLevel);
-
 
 for trial = 1:numTrials
         % If this is the first trial we present a start screen and wait for
@@ -142,10 +105,6 @@ for trial = 1:numTrials
         end
         
         %% Draw initial blank screen and flash
-        blankTime = 1;
-        flashTime = 0.8;
-        flashimage = 'flash.bmp';
-        
         vbl = fndrawflash(window,xCenter,yCenter,flashimage,blankTime,flashTime,BackgCol);
         
         %% Initialize the position and select a texture to show

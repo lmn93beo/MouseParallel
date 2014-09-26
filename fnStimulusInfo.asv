@@ -1,6 +1,6 @@
 function [ScaleFactor, TargetPosRange, FixationCrossSize, UseCross, CrossLineWidth,...
         BackgCol, TargetCol, Box1Col, Box2Col, BoxHeight, BoxWidth, ...
-        NumFramesWaitZeroSpeed, SpeedArray, blankTime, flashTime, flashimage] = fnStimulusInfo
+        NumFramesWaitZeroSpeed, SpeedArray] = fnStimulusInfo
 
 ScaleFactor = 0.5 ; %How big the image is relative to the full screen height
 TargetPosRange = 500; %Size of target box(from center-range to center+range)
@@ -18,7 +18,7 @@ NumFramesWaitZeroSpeed = 100;
 SpeedArray = repmat([200 200 200 200 200  200 200 200 200 200],[300 1]);
 
 blankTime = 1;
-flashTime = 0.8;
-flashimage = 'flash.bmp';
+        flashTime = 0.8;
+        flashimage = 'flash.bmp';
 
 end

@@ -10,6 +10,7 @@ global MainStruct DAQstruct LickLog
 %% Initialize DAQ Devices
 recports = {'ai0','ai1','ai2','ai3'};
 outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
+num_mice = length(recports);
 
 [RecSession, OutputSession] = InitDAQ(recports,outputports);
 
@@ -36,75 +37,41 @@ outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
 % playsound = 0; %Do we want sound?
 
 %% Set image info
-
-ImageFolder = uigetdir(pwd);
-
 % Image struct array - contains image name and value
 % values 1= target or right; 0 = neutral or no reward; -1= punish stop or left
-
-Im(1).name='H.bmp';
-Im(1).val=1;
-Im(2).name='Hor.bmp';
-Im(2).val=1;
-Im(3).name='Vert.bmp';
-Im(3).val=1;
-
-Im(4).name='X.bmp';
-Im(4).val=-1;
-Im(5).name='Diag1.bmp';
-Im(5).val=-1;
-Im(6).name='Diag2.bmp';
-Im(6).val=-1;
-
-Im(7).name='O.bmp';
-Im(7).val=0;
-Im(8).name='OInvert.bmp';
-Im(8).val=0;
-Im(9).name='Black.bmp';
-Im(9).val=0;
-Im(10).name='White.bmp';
-Im(10).val=0;
-
+Im = fnSetImageInfo();
+ImageFolder = uigetdir(pwd);
 
 
 %% Initialize and open screen
-
 Screen('Preference', 'SkipSyncTests', 1 );
 
 screens = Screen('Screens');
 screenNumber = 0;
 
-
 %% Stimulus information
-
-ScaleFactor = 0.5 ; %How big the image is relative to the full screen height
-TargetPosRange = 500; %Size of target box(from center-range to center+range)
-FixationCrossSize = 40;
-UseCross=0;
-CrossLineWidth=8;
-BackgCol=[127 127 127];
-TargetCol=[0 0 0];
-Box1Col=[40 40 40];
-Box2Col=[200 200 200];
-BoxHeight=350;
-BoxWidth=30;
-NumFramesWaitZeroSpeed = 100;
+[ScaleFactor, TargetPosRange, FixationCrossSize, UseCross, CrossLineWidth,...
+        BackgCol, TargetCol, Box1Col, Box2Col, BoxHeight, BoxWidth, ...
+        NumFramesWaitZeroSpeed, SpeedArray, blankTime, flashTime, flashimage] = fnStimulusInfo();
 
 %% Juice information
 
 JuiceTime = 0.005;
 ImmediateReset = 1;
-StopTimes = [0 0 0 0]; %Keeps track of number of stop times for each mouse
+
+%% Initialize structs to keep track of performance
+[StopTimes, FalsePos, PictureTypeList] = fnInitLog();
+
+%Keeps track of number of stop times for each mouse
+StopTimes = zeros(1,num_mice); 
 
 % Keep track of other performance statistics CT 8/26/14
-FalsePos = [0 0 0 0]; % Lick but not target
-
+FalsePos = zeros(1,num_mice); % Lick but not target
 
 %Stores all the values of all trials. 1 for target, 0 and -1 for
 %distractors. For example: [1 1 0 0 -1] indicates 5 trials, first 2 trials
 %show targets...
 PictureTypeList = [];
-
 
 %% Window-relevant parameters
 [window, windowRect] = Screen('OpenWindow', screenNumber, BackgCol);
@@ -116,23 +83,8 @@ PictureTypeList = [];
 % Set the priority level that will be called
 topPriorityLevel = MaxPriority(window);
 
-
-
 %% Initialize images
-
-NF = size(Im,2);
-ImageList = cell(NF,1);
-TextureList = cell(NF,1);
-for k = 1 : NF
-        X= double(imread(fullfile(ImageFolder, Im(k).name))/255);
-        Z(:,:,1) = X(:,:,1)*(TargetCol(1)-BackgCol(1))+BackgCol(1);
-        Z(:,:,2) = X(:,:,2)*(TargetCol(2)-BackgCol(2))+BackgCol(2);
-        Z(:,:,3) = X(:,:,3)*(TargetCol(3)-BackgCol(3))+BackgCol(3);
-        ImageList{k} = Z;
-        TextureList{k} = Screen('MakeTexture',window,ImageList{k});
-        clear Z;
-end
-[s1, s2, s3] = size(ImageList{1});
+[TextureList, s1, s2] = fnInitImages(ImageFolder, Im, TargetCol, BackgCol, window);
 
 %% Timing information
 ifi = Screen('GetFlipInterval', window);
@@ -141,17 +93,11 @@ waitFrames = 1;
 % Divide the horizontal length into equal intervals.
 % In each interval the speed is specified in SpeedArray. (each row represents
 % one trial)
-MoveArrayCluster=9;
-
-SpeedArray = repmat([200 200 200 200 200  200 200 200 200 200],[300 1]);
-
 [numTrials, numIntervals] = size(SpeedArray);
 PositionArray = 0 : screenXpixels/numIntervals : screenXpixels;
 
-
 %% Experimental loop
 Priority(topPriorityLevel);
-
 
 for trial = 1:numTrials
         % If this is the first trial we present a start screen and wait for
@@ -170,25 +116,21 @@ for trial = 1:numTrials
         end
         
         %% Draw initial blank screen and flash
-        blankTime = 1;
-        flashTime = 0.8;
-        flashimage = 'flash.bmp';
-        
         vbl = fndrawflash(window,xCenter,yCenter,flashimage,blankTime,flashTime,BackgCol);
         
         %% Initialize the position and select a texture to show
         ImxCenter = 0;
         FrameCount = 0;
         soundplayed = 0; %Makes sure that the sound is played once.
-        JuiceGiven = [0 0 0 0]; %Indicates whether juice has been given for the trial.
+        JuiceGiven = zeros(1,num_mice); %Indicates whether juice has been given for the trial.
              
         % FPCount counts how many licks on distractors in a trial (similar
         % to JuiceGiven). Count as a false positive only when FPCount = 0.
-        FPCount = [0 0 0 0];
+        FPCount = zeros(1,num_mice);
         
         
-        TimeJuiceGiven = [0 0 0 0]; %Time that the juice was given. 0 means not given
-        ResetGiven = [0 0 0 0];
+        TimeJuiceGiven = zeros(1,num_mice); %Time that the juice was given. 0 means not given
+        ResetGiven = zeros(1,num_mice);
         index = round(rand)+1;
         PictureTypeList = [PictureTypeList Im(index).val];
         ShownTexture = TextureList{index};
