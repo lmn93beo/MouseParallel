@@ -3,7 +3,7 @@ close all;
 clear all;
 
 global MainStruct DAQstruct
-global all_scans all_TimeStamps
+
 
 %% Initialize DAQ Devices
 recports = {'ai0','ai1','ai2','ai3'};
@@ -322,53 +322,12 @@ for trial = 1:numTrials
 end
 
 Priority(0);
-%% Calculate statistics of missed and Correct Rejection
-Missed = sum(PictureTypeList==1) - StopTimes;
-CorrectRejection = sum(PictureTypeList~=1) - FalsePos;
-numtrials = numel(PictureTypeList);
-
-%% Stop acquistion, clear screen and exit.
+%% Stop acquistion, clear screen, write log and exit.
 RecSession.stop();
 OutputSession.stop();
-currenttime = datestr(clock(),'mmdd-HHMM');
 
-% Write trial summary into output file
-filename = sprintf('.\\Logs\\%s.txt',currenttime);
-file = fopen(filename,'at');
+% Write trial summary into output files
 sca;
-disp('Summary for this run:');
-fprintf('Number of trials = %d. \n',numtrials);
-fprintf(file,'Mouse,Rewards,False.Positives,Misses,Correct.Rejections\n');
-for i= 1:4
-        % Other statistics added CT 8/26/14         
-        fprintf(file,'%i,%i,%i,%i,%i\n',...
-                i, StopTimes(i), FalsePos(i), Missed(i), CorrectRejection(i));
-        fprintf('Mouse %i got %i rewards, %i false positives, %i misses, %i correct rejection \n',...
-                i, StopTimes(i), FalsePos(i), Missed(i), CorrectRejection(i));
-end
-fclose(file);
-
-
-% Write recordings summary to output file
-filename = sprintf('.\\ScanHistory\\%s.txt',currenttime);
-file = fopen(filename,'at');
-fprintf(file, 'Time,');
-for i = 1:numel(recports)
-        fprintf(file,'%s,',recports{i});
-end
-
-fprintf(file,'\n');
-
-for i = 1:numel(all_TimeStamps)
-        fprintf(file,'%d,',all_TimeStamps(i));
-        for j = 1:numel(recports)
-                fprintf(file, '%d,',all_scans(i,j));
-        end
-        fprintf(file,'\n');
-end
-
-fclose(file);
-clear all;
-
-%close all;
-%clear all;
+disp('Writing logs...');
+fnWriteLog(PictureTypeList,StopTimes,FalsePos,recports);
+disp('Logs written!');

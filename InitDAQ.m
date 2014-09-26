@@ -1,6 +1,7 @@
 function [RecSession, OutputSession] = InitDAQ(recports,outputports)
 
 global MainStruct DAQstruct
+global LickLog
 
 DAQstruct.LickedList = [0 0 0 0];
 MainStruct.numLicks = [0 0 0 0];
@@ -34,5 +35,9 @@ RecSession.IsContinuous = true;
 disp('Starting background acquisition...');
 RecSession.startBackground();
 MainStruct.InitTime = GetSecs();
+
+% Initiate LickLog - struct which records time of licks
+LickLog = struct();
+LickLog(numel(MainStruct.numLicks)).licks = [];
 
 end
