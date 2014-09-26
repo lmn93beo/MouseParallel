@@ -2,10 +2,10 @@
 close all;
 clear all;
 
-global MainStruct DAQstruct
+global MainStruct DAQstruct LickLog
 
 
-%% Initialize DAQ Devices
+%% Initialize DAQ Devicesj
 recports = {'ai0','ai1','ai2','ai3'};
 outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
 
@@ -322,19 +322,12 @@ for trial = 1:numTrials
 end
 
 Priority(0);
-%% Calculate statistics of missed and Correct Rejection
-Missed = sum(PictureTypeList==1) - StopTimes;
-CorrectRejection = sum(PictureTypeList~=1) - FalsePos;
-numtrials = cnumel(PictureTypeList);
-
-%% Stop acquistion, clear screen and exit.
+%% Stop acquistion, clear screen, write log and exit.
 RecSession.stop();
 OutputSession.stop();
 
 % Write trial summary into output files
 sca;
 disp('Writing logs...');
-fnWriteLog(numtrials,StopTimes,FalsePos,Missed,CorrectRejection,recports);
-
-%close all;
-%clear all;
+fnWriteLog(PictureTypeList,StopTimes,FalsePos,recports);
+disp('Logs written!');

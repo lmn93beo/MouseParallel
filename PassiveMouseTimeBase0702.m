@@ -2,10 +2,10 @@
 close all;
 clear all;
 
-global MainStruct DAQstruct
+global MainStruct DAQstruct LickLog
 
 
-%% Initialize DAQ Devices
+%% Initialize DAQ Devicesjr
 recports = {'ai0','ai1','ai2','ai3'};
 outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
 
