@@ -9,10 +9,10 @@ global MainStruct DAQstruct LickLog
 
 %% Initialize DAQ Devices
 recports = {'ai0','ai1','ai2','ai3'};
-outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
+juiceports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
 num_mice = length(recports);
 
-[RecSession, OutputSession] = InitDAQ(recports,outputports);
+[RecSession, OutputSession] = InitDAQ(recports,juiceports);
 
 %% Initialize Sound
 % fnInitSound();

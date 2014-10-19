@@ -9,31 +9,13 @@ global MainStruct DAQstruct LickLog
 
 %% Initialize DAQ Devices
 recports = {'ai0','ai1','ai2','ai3'};
-outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
+juiceports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
 num_mice = length(recports);
 
-[RecSession, OutputSession] = InitDAQ(recports,outputports);
+[RecSession, OutputSession] = InitDAQ(recports,juiceports);
 
 %% Initialize Sound
-% disp('Initializing sound...');
-% 
-% SamplingFreq = 44100;
-% t = 0:1/SamplingFreq:1-1/SamplingFreq;
-% freq = 400; %Hz, frequency of the tone
-% ToneData = sin(2*pi*freq*t);
-% 
-% Channels = size(ToneData,1);          % Number of rows == number of channels.
-% 
-% % Performing a basic initialization of the sound driver
-% InitializePsychSound;
-% 
-% % Open the default audio device [], with default mode [] (==Only playback)
-% % A required latency class of zero 0 == no low-latency mode
-% % A frequency of freq and nrchannels sound channels.  This returns a handle to the audio device:
-% Handle = PsychPortAudio('Open', [], [], 0, SamplingFreq, Channels);
-% 
-% % Fill the audio playback buffer with the audio data
-% PsychPortAudio('FillBuffer', Handle, ToneData);
+% fnInitSound();
 % playsound = 0; %Do we want sound?
 
 %% Set image info
@@ -60,18 +42,7 @@ JuiceTime = 0.005;
 ImmediateReset = 1;
 
 %% Initialize structs to keep track of performance
-[StopTimes, FalsePos, PictureTypeList] = fnInitLog();
-
-%Keeps track of number of stop times for each mouse
-StopTimes = zeros(1,num_mice); 
-
-% Keep track of other performance statistics CT 8/26/14
-FalsePos = zeros(1,num_mice); % Lick but not target
-
-%Stores all the values of all trials. 1 for target, 0 and -1 for
-%distractors. For example: [1 1 0 0 -1] indicates 5 trials, first 2 trials
-%show targets...
-PictureTypeList = [];
+[StopTimes, FalsePos, PictureTypeList] = fnInitLog(num_mice);
 
 %% Window-relevant parameters
 [window, windowRect] = Screen('OpenWindow', screenNumber, BackgCol);
@@ -119,22 +90,9 @@ for trial = 1:numTrials
         vbl = fndrawflash(window,xCenter,yCenter,flashimage,blankTime,flashTime,BackgCol);
         
         %% Initialize the position and select a texture to show
-        ImxCenter = 0;
-        FrameCount = 0;
-        soundplayed = 0; %Makes sure that the sound is played once.
-        JuiceGiven = zeros(1,num_mice); %Indicates whether juice has been given for the trial.
-             
-        % FPCount counts how many licks on distractors in a trial (similar
-        % to JuiceGiven). Count as a false positive only when FPCount = 0.
-        FPCount = zeros(1,num_mice);
-        
-        
-        TimeJuiceGiven = zeros(1,num_mice); %Time that the juice was given. 0 means not given
-        ResetGiven = zeros(1,num_mice);
-        index = round(rand)+1;
-        PictureTypeList = [PictureTypeList Im(index).val];
-        ShownTexture = TextureList{index};
-        
+        [ImxCenter, FrameCount, soundplayed, JuiceGiven, FPCount, TimeJuiceGiven,...
+                ResetGiven, index, PictureTypeList, ShownTexture] = ...
+                fnInitTrial(num_mice,PictureTypeList,TextureList,Im);      
         
         %% Main loop
         while ImxCenter < screenXpixels && ~KbCheck
@@ -243,29 +201,15 @@ for trial = 1:numTrials
                         end
                 end
                 
-                %% Flip
+                %% Flip and Update Position
                 vbl = Screen('Flip',window,vbl + (waitFrames-0.5)*ifi,0,1);
-                %vbl = Screen('AsyncFlipBegin',window,vbl + (waitFrames-0.5)*ifi,0,1);
-                %         vbl = Screen('Flip',window,0,0,1,0);
-                
-                %% Update position
+                         
                 %Find the corresponding speed and update center accordingly
-                [m, n] = size(find(PositionArray <= ImxCenter));
-                
-                if SpeedArray(trial,n) == 0
-                        FrameCount = FrameCount + 1;
-                end
-                
-                if FrameCount == NumFramesWaitZeroSpeed;
-                        ImxCenter = ImxCenter + screenXpixels/numIntervals;
-                        FrameCount = 0;
-                end
-                
-                ImxCenter = ImxCenter + ifi*SpeedArray(trial,n);
+                [ImxCenter, FrameCount] = fnUpdatePosition(PositionArray,...
+                        ImxCenter,SpeedArray,trial,ifi,screenXpixels,numIntervals,FrameCount, NumFramesWaitZeroSpeed);
                 
         end
 end
-
 Priority(0);
 %% Stop acquistion, clear screen, write log and exit.
 RecSession.stop();

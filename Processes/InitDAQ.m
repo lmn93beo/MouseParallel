@@ -1,4 +1,4 @@
-function [RecSession, OutputSession] = InitDAQ(recports,outputports)
+function [RecSession, OutputSession, PunishSession] = InitDAQ(recports,juiceports,punishports)
 
 global MainStruct DAQstruct
 global LickLog
@@ -15,15 +15,19 @@ daq.getDevices();
 RecSession = daq.createSession('ni');
 RecSession.Rate = 10; %rate of sampling per second
 OutputSession = daq.createSession('ni');
+PunishSession = daq.createSession('ni');
 
 %Add channels
 disp('Adding channels...');
 RecSession.addAnalogInputChannel('Dev1',recports,'Voltage');
-OutputSession.addDigitalChannel('Dev2',outputports,'OutputOnly');
+OutputSession.addDigitalChannel('Dev2',juiceports,'OutputOnly');
+PunishSession.addDigitalChannel('Dev2',punishports,'OutputOnly');
 
-%Initialize port statesstop to be all 0.
+%Initialize port states to be all 0.
 OutputSession.outputSingleScan(zeros(1,num_mice));
 MainStruct.CurrentPortState = zeros(1,num_mice);
+PunishSession.outputSingleScan(zeros(1,num_mice));
+MainStruct.CurrentPunishState = zeros(1,num_mice);
 
 %Add listener for background listening
 lh = RecSession.addlistener('DataAvailable', @plotData);

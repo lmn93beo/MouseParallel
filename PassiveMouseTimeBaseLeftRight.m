@@ -11,13 +11,15 @@ global MainStruct DAQstruct LickLog
 
 
 %% Initialize DAQ Devices
-recports = {'ai0','ai1','ai2','ai3'};
-outputports = {'port0/line0','port0/line2','port0/line1','port0/line3'};
-targetports = [1 1 0 0]; %Assign which port is target/distractor
+recports = {'ai0','ai2','ai1','ai3'};
+juiceports = {'port0/line0','port0/line1','port0/line2','port0/line3'};
+punishports = {'port0/line4','port0/line5','port0/line6','port0/line7'};
+
+targetports = [1 0 1 0]; %Assign which port is target/distractor
 distractorports = 1 - targetports;
 num_mice = length(recports);
 
-[RecSession, OutputSession] = InitDAQ(recports,outputports);
+[RecSession, OutputSession, PunishSession] = InitDAQ(recports,juiceports,punishports);
 
 %% Initialize Sound
 % fnInitSound();
@@ -47,7 +49,8 @@ JuiceTime = 0.005;
 ImmediateReset = 1;
 
 %% Initialize structs to keep track of performance
-[StopTimes, FalsePos, PictureTypeList] = fnInitLog(num_mice);
+mouse_name_list = [37 38];
+[TrialOutcomes, PictureTypeList] = fnInitLogLR(num_mice,mouse_name_list);
 
 %% Window-relevant parameters
 [window, windowRect] = Screen('OpenWindow', screenNumber, BackgCol);
@@ -98,6 +101,8 @@ for trial = 1:numTrials
         [ImxCenter, FrameCount, soundplayed, JuiceGiven, FPCount, TimeJuiceGiven,...
                 ResetGiven, index, PictureTypeList, ShownTexture] = ...
                 fnInitTrial(num_mice,PictureTypeList,TextureList,Im);
+        
+        current_trial_outcome = [0 0]; %1 means correct, -1 means incorrect, 0 means skip
          
         %% Main loop
         while ImxCenter < screenXpixels && ~KbCheck
@@ -160,7 +165,10 @@ for trial = 1:numTrials
                         MainStruct.CurrentPortState = ...
                                 MainStruct.CurrentPortState + max(OutputDecisionList,OutputDecisionList2);
                         
-                        StopTimes = StopTimes + max(OutputDecisionList,OutputDecisionList2);
+                        %Change the record
+                        positions = find(max(OutputDecisionList,OutputDecisionList2)==1);
+                        positions = round(positions/2);
+                        current_trial_outcome(positions) = 1;
                                              
                         if ImmediateReset 
                                 % Direct the output ports
@@ -173,8 +181,7 @@ for trial = 1:numTrials
                                         MainStruct.CurrentPortState - max(OutputDecisionList,OutputDecisionList2);
                                 OutputSession.outputSingleScan(MainStruct.CurrentPortState);
                                 disp('Reset made. Current state is ');
-                                disp(MainStruct.CurrentPortState);
-                                
+                                disp(MainStruct.CurrentPortState);      
                         end
                         
                         %Print out a statement
@@ -189,7 +196,16 @@ for trial = 1:numTrials
                 % If mouse licks on incorrect port           
                 if sum(FalsePosList) ~= 0 || sum(FalsePosList2) ~= 0
                         disp('Wrong lick!');
-                        FalsePos = FalsePos + max(FalsePosList,FalsePosList2);
+                        
+                        %Change the record
+                        positions = find(max(FalsePosList,FalsePosList2)==1);
+                        positions = round(positions/2);
+                        for i = 1:numel(positions)
+                                if current_trial_outcome(i) ~= 1
+                                        current_trial_outcome(i) = -1;
+                                end
+                        end
+                        
                         FPCount = FPCount + max(FalsePosList,FalsePosList2);
                 end
                 
@@ -222,15 +238,20 @@ for trial = 1:numTrials
                         ImxCenter,SpeedArray,trial,ifi,screenXpixels,numIntervals,FrameCount, NumFramesWaitZeroSpeed);
                 
         end
+        % Change record in outcomes struct
+        for i = 1:length(TrialOutcomes)
+                TrialOutcomes(i).outcome_list = [TrialOutcomes(i).outcome_list current_trial_outcome(i)];
+        end
 end
 
 Priority(0);
 %% Stop acquistion, clear screen, write log and exit.
 RecSession.stop();
 OutputSession.stop();
+PunishSession.stop();
 
 % Write trial summary into output files
 sca;
 disp('Writing logs...');
-fnWriteLog(PictureTypeList,StopTimes,FalsePos,recports);
+fnWriteLogLR(PictureTypeList,TrialOutcomes,recports);
 disp('Logs written!');
