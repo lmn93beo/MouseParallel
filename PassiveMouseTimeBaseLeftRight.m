@@ -12,7 +12,7 @@ global MainStruct DAQstruct LickLog
 
 %% Initialize DAQ Devices
 recports = {'ai0','ai1','ai2','ai3'};
-outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
+outputports = {'port0/line0','port0/line2','port0/line1','port0/line3'};
 targetports = [1 1 0 0]; %Assign which port is target/distractor
 distractorports = 1 - targetports;
 num_mice = length(recports);
@@ -107,7 +107,7 @@ for trial = 1:numTrials
         
         TimeJuiceGiven = zeros(1,num_mice); %Time that the juice was given. 0 means not given
         ResetGiven = zeros(1,num_mice);
-        index = round(rand)+4;
+        index = round(rand*4);
         PictureTypeList = [PictureTypeList Im(index).val];
         ShownTexture = TextureList{index};
         
@@ -174,9 +174,9 @@ for trial = 1:numTrials
 %                         disp(OutputDecisionList2),
                         % Update the new port state
                         MainStruct.CurrentPortState = ...
-                                MainStruct.CurrentPortState + OutputDecisionList;
+                                MainStruct.CurrentPortState + max(OutputDecisionList,OutputDecisionList2);
                         
-                        StopTimes = StopTimes + OutputDecisionList;
+                        StopTimes = StopTimes + max(OutputDecisionList,OutputDecisionList2);
                                              
                         if ImmediateReset 
                                 % Direct the output ports
@@ -186,7 +186,7 @@ for trial = 1:numTrials
                                 
                                 % Close port immediately
                                 MainStruct.CurrentPortState = ...
-                                        MainStruct.CurrentPortState - OutputDecisionList;
+                                        MainStruct.CurrentPortState - max(OutputDecisionList,OutputDecisionList2);
                                 OutputSession.outputSingleScan(MainStruct.CurrentPortState);
                                 disp('Reset made. Current state is ');
                                 disp(MainStruct.CurrentPortState);

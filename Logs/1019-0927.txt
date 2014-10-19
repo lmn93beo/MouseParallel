@@ -1,0 +1,5 @@
+Mouse,Rewards,False.Positives,Misses,Correct.Rejections,Lick.Times
+1,0,0,0,2,5.8734,6.4732,
+2,0,0,0,2,
+3,0,0,0,2,4.4735,
+4,0,0,0,2,
