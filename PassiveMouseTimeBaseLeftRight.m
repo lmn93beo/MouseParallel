@@ -95,23 +95,10 @@ for trial = 1:numTrials
         vbl = fndrawflash(window,xCenter,yCenter,flashimage,blankTime,flashTime,BackgCol);
         
         %% Initialize the position and select a texture to show
-        ImxCenter = 0;
-        FrameCount = 0;
-        soundplayed = 0; %Makes sure that the sound is played once.
-        JuiceGiven = zeros(1,num_mice); %Indicates whether juice has been given for the trial.
-             
-        % FPCount counts how many licks on distractors in a trial (similar
-        % to JuiceGiven). Count as a false positive only when FPCount = 0.
-        FPCount = zeros(1,num_mice);
-        
-        
-        TimeJuiceGiven = zeros(1,num_mice); %Time that the juice was given. 0 means not given
-        ResetGiven = zeros(1,num_mice);
-        index = round(rand*4);
-        PictureTypeList = [PictureTypeList Im(index).val];
-        ShownTexture = TextureList{index};
-        
-        
+        [ImxCenter, FrameCount, soundplayed, JuiceGiven, FPCount, TimeJuiceGiven,...
+                ResetGiven, index, PictureTypeList, ShownTexture] = ...
+                fnInitTrial(num_mice,PictureTypeList,TextureList,Im);
+         
         %% Main loop
         while ImxCenter < screenXpixels && ~KbCheck
                 %% Draw Stimulus on the screen
@@ -240,25 +227,11 @@ for trial = 1:numTrials
                         end
                 end
                 
-                %% Flip
+                %% Flip and Update Position
                 vbl = Screen('Flip',window,vbl + (waitFrames-0.5)*ifi,0,1);
-                %vbl = Screen('AsyncFlipBegin',window,vbl + (waitFrames-0.5)*ifi,0,1);
-                %         vbl = Screen('Flip',window,0,0,1,0);
                 
-                %% Update position
-                %Find the corresponding speed and update center accordingly
-                [m, n] = size(find(PositionArray <= ImxCenter));
-                
-                if SpeedArray(trial,n) == 0
-                        FrameCount = FrameCount + 1;
-                end
-                
-                if FrameCount == NumFramesWaitZeroSpeed;
-                        ImxCenter = ImxCenter + screenXpixels/numIntervals;
-                        FrameCount = 0;
-                end
-                
-                ImxCenter = ImxCenter + ifi*SpeedArray(trial,n);
+                [ImxCenter, FrameCount] = fnUpdatePosition(PositionArray,...
+                        ImxCenter,SpeedArray,trial,ifi,screenXpixels,numIntervals,FrameCount, NumFramesWaitZeroSpeed);
                 
         end
 end
