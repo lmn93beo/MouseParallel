@@ -1,7 +1,10 @@
+%% Notes
+%Right ports are for targets
+%Left ports are for non-targets.
+
 %% Clear the workspace
 close all;
 clear all;
-
 addpath(genpath('.\'));
 
 global MainStruct DAQstruct LickLog
@@ -10,6 +13,8 @@ global MainStruct DAQstruct LickLog
 %% Initialize DAQ Devices
 recports = {'ai0','ai1','ai2','ai3'};
 outputports = {'port0/line2','port0/line1','port0/line0','port0/line3'};
+targetports = [1 1 0 0]; %Assign which port is target/distractor
+distractorports = 1 - targetports;
 num_mice = length(recports);
 
 [RecSession, OutputSession] = InitDAQ(recports,outputports);
@@ -102,7 +107,7 @@ for trial = 1:numTrials
         
         TimeJuiceGiven = zeros(1,num_mice); %Time that the juice was given. 0 means not given
         ResetGiven = zeros(1,num_mice);
-        index = round(rand)+1;
+        index = round(rand)+4;
         PictureTypeList = [PictureTypeList Im(index).val];
         ShownTexture = TextureList{index};
         
@@ -138,21 +143,35 @@ for trial = 1:numTrials
                                 
                 %% Reward + Keep track of statistics  8/26/14
                 
-                %OutputDecisionList is 1 when the mouse makes a correct lick
+                %OutputDecisionList is 1 when the mouse licks right on
+                %target
                 OutputDecisionList = imageRect(1)> xCenter-TargetPosRange & ...
-                        imageRect(3)< xCenter+TargetPosRange &...
+                        imageRect(3)< xCenter+TargetPosRange & targetports &...
                         JuiceGiven == 0 & DAQstruct.LickedList == 1 & Im(index).val == 1;
                 
+                %OutputDecisionList2 is 1 when the mouse licks left on non-target 
+                OutputDecisionList2 = imageRect(1)> xCenter-TargetPosRange & ...
+                        imageRect(3)< xCenter+TargetPosRange & distractorports &...
+                        JuiceGiven == 0 & DAQstruct.LickedList == 1 & Im(index).val ~= 1;
+                
                                 
-                %FalsePosList is 1 when the mouse makes a wrong lick.
+                %FalsePosList is 1 when the mouse licks left on target.
                 FalsePosList = imageRect(1)> xCenter-TargetPosRange & ...
-                        imageRect(3)< xCenter+TargetPosRange &...
-                        FPCount == 0 & JuiceGiven == 0 & DAQstruct.LickedList == 1 & Im(index).val ~= 1;
+                        imageRect(3)< xCenter+TargetPosRange & distractorports &...
+                        FPCount == 0 & DAQstruct.LickedList == 1 & Im(index).val == 1;
+                
+                %FalsePosList2 is 1 when the mouse licks right on non-target.
+                FalsePosList2 = imageRect(1)> xCenter-TargetPosRange & ...
+                        imageRect(3)< xCenter+TargetPosRange & targetports &...
+                        FPCount == 0 & DAQstruct.LickedList == 1 & Im(index).val ~= 1;
                 
                         
-                % If a juice is detected...
-                if sum(OutputDecisionList) ~= 0
-                        
+                % If mouse licks on the correct port
+                if sum(OutputDecisionList) ~= 0 || sum(OutputDecisionList2) ~= 0
+%                         disp('OutputDecisionList is ')
+%                         disp(OutputDecisionList)
+%                         disp('OutputDecisionList2 is ')
+%                         disp(OutputDecisionList2),
                         % Update the new port state
                         MainStruct.CurrentPortState = ...
                                 MainStruct.CurrentPortState + OutputDecisionList;
@@ -179,14 +198,21 @@ for trial = 1:numTrials
                                 find(OutputDecisionList==1));
                         
                         %Change the JuiceGiven
-                        JuiceGiven = JuiceGiven + OutputDecisionList;
+                        JuiceGiven = JuiceGiven + max(OutputDecisionList,OutputDecisionList2);
                         TimeJuiceGiven = TimeJuiceGiven + OutputDecisionList * GetSecs();
                 end
                 
-                % Update FalsePosList statistics if juice not given                
-                if sum(FalsePosList) ~= 0
-                        FalsePos = FalsePos + FalsePosList;
-                        FPCount = FPCount + FalsePosList;
+                % If mouse licks on incorrect port           
+                if sum(FalsePosList) ~= 0 || sum(FalsePosList2) ~= 0
+                        %Still give juice?
+%                         disp('FalsePosList: ')
+%                         disp(FalsePosList)
+%                         disp('FalsePosList2: ')
+%                         disp(FalsePosList2)
+                        
+                        disp('Wrong lick!');
+                        FalsePos = FalsePos + max(FalsePosList,FalsePosList2);
+                        FPCount = FPCount + max(FalsePosList,FalsePosList2);
                 end
                 
                 if ~ImmediateReset
