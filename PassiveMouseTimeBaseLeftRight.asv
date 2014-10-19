@@ -173,8 +173,7 @@ for trial = 1:numTrials
                                         MainStruct.CurrentPortState - max(OutputDecisionList,OutputDecisionList2);
                                 OutputSession.outputSingleScan(MainStruct.CurrentPortState);
                                 disp('Reset made. Current state is ');
-                                disp(MainStruct.CurrentPortState);
-                                
+                                disp(MainStruct.CurrentPortState);      
                         end
                         
                         %Print out a statement
