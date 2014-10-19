@@ -10,18 +10,34 @@ currenttime = datestr(clock(),'mmdd-HHMM');
 filename = sprintf('.\\Logs\\LR%s.txt',currenttime);
 file = fopen(filename,'at');
 
+summary_struct = struct;
+for i=1:length(TrialOutcomes)
+        summary_struct(i).target_rewards = 0;
+        summary_struct(i).distractor_rewards = 0;
+end        
+
+
 disp('Summary for this run:');
 fprintf('Number of trials = %d. \n',numtrials);
 fprintf(file,'Trial,PictureType,Mouse37,Mouse38\n'); %Need to add licktimes somewhere?...
 for i= 1:numtrials
         % Other statistics added CT 8/26/14         
         fprintf(file,'%i,%i,%i,%i\n',i,PictureTypeList(i),TrialOutcomes(1).outcome_list(i),TrialOutcomes(2).outcome_list(i));
-        
-%         fprintf('Mouse %i got %i rewards, %i false positives, %i misses, %i correct rejection \n',...
-%                 i, StopTimes(i), FalsePos(i), Missed(i), CorrectRejection(i));
+        for j=1:length(TrialOutcomes)
+                if PictureTypeList(i) == 1 && TrialOutcomes(j).outcome_list(i) == 1
+                        summary_struct(j).target_rewards = summary_struct(j).target_rewards + 1;
+                elseif PictureTypeList(i) ~= 1 && TrialOutcomes(j).outcome_list(i) == 1
+                        summary_struct(j).distractor_rewards = summary_struct(j).distractor_rewards + 1;
+                end
+        end
+               
 end
 fclose(file);
 
+for i=1:length(TrialOutcomes)
+        fprintf('Mouse %i got %i rewards for targets and %i rewards for distractors\n',...
+                TrialOutcomes(i).mouse_name, summary_struct(i).target_rewards,summary_struct(i).distractor_rewards);
+end
 
 % Write recordings summary to output file
 filename = sprintf('.\\ScanHistory\\%s.csv',currenttime);
