@@ -15,7 +15,7 @@ BoxHeight=350;
 BoxWidth=30;
 NumFramesWaitZeroSpeed = 100;
 
-SpeedArray = repmat([200 200 200 200 200  200 200 200 200 200],[300 1]);
+SpeedArray = [0; 0; 0; 0];%repmat([0 0 0],[300 1]);
 
 blankTime = 1;
 flashTime = 0.8;

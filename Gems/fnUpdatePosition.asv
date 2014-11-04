@@ -1,16 +1,10 @@
 function [ImxCenter, FrameCount] = fnUpdatePosition(PositionArray,...
 ImxCenter,SpeedArray,trial,ifi,screenXpixels,numIntervals,FrameCount, NumFramesWaitZeroSpeed)
 
-global MainStruct
-
 % Static mode:
 if SpeedArray == 0
-      if ImxCenter == -2000 && GetSecs() - MainStruct.init_time > 1
-              ImxCenter = screenXpixels/2;
-      elseif ImxCenter == screenXpixels/2 && GetSecs() -MainStruct.init_time > 3
-              ImxCenter = 2000;
-      end
-                      
+      if ImxCenter == -500  
+
 
         
 else % Moving mode

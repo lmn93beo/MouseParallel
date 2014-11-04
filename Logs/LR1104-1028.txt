@@ -1,0 +1,2 @@
+Trial,PictureType,Mouse37,Mouse38
+1,1,0,0

@@ -1,7 +1,16 @@
 function [ImxCenter, FrameCount, soundplayed, JuiceGiven, FPCount, TimeJuiceGiven,...
-         ResetGiven, index, PictureTypeList, ShownTexture] = fnInitTrial(num_mice,PictureTypeList,TextureList,Im)
+         ResetGiven, index, PictureTypeList, ShownTexture] = fnInitTrial(num_mice,PictureTypeList,TextureList,Im,SpeedArray)
 
-ImxCenter = 0;
+global MainStruct 
+ 
+%In static mode, start center outside the screen
+if SpeedArray == 0
+        ImxCenter = -2000;
+        MainStruct.init_time = GetSecs();
+else
+        ImxCenter = 0;
+end
+
 FrameCount = 0;
 soundplayed = 0; %Makes sure that the sound is played once.
 JuiceGiven = zeros(1,num_mice); %Indicates whether juice has been given for the trial.

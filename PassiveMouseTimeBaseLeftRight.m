@@ -101,12 +101,13 @@ for trial = 1:numTrials
         %% Initialize the position and select a texture to show
         [ImxCenter, FrameCount, soundplayed, JuiceGiven, FPCount, TimeJuiceGiven,...
                 ResetGiven, index, PictureTypeList, ShownTexture] = ...
-                fnInitTrial(num_mice,PictureTypeList,TextureList,Im);
+                fnInitTrial(num_mice,PictureTypeList,TextureList,Im, SpeedArray);
         
         current_trial_outcome = [0 0]; %1 means correct, -1 means incorrect, 0 means skip
          
         %% Main loop
         while ImxCenter < screenXpixels && ~KbCheck
+                fprintf('Current image center is %i\n', ImxCenter);
                 %% Draw Stimulus on the screen
                 %Construct the rectangle containing the image, then draw the image
                 imageRect = fnScaleImage(s1,s2,ScaleFactor,...
