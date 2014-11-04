@@ -95,7 +95,8 @@ for trial = 1:numTrials
         end
         
         %% Draw initial blank screen and flash
-        vbl = fndrawflash(window,xCenter,yCenter,flashimage,blankTime,flashTime,BackgCol);
+        vbl = fndrawflash(window,xCenter,yCenter,flashimage,blankTime,flashTime,TargetPosRange,...
+                BoxHeight,BoxWidth,Box1Col);
         
         %% Initialize the position and select a texture to show
         [ImxCenter, FrameCount, soundplayed, JuiceGiven, FPCount, TimeJuiceGiven,...
